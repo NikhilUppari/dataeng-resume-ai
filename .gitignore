@@ -2,11 +2,37 @@ __pycache__/
 *.py[cod]
 .venv/
 venv/
-.env
 .DS_Store
-.streamlit/secrets.toml
+
+# Personal/private inputs
+personal_data/
+private_data/
+private_resumes/
+local_resumes/
+job_descriptions/
+*.local.docx
+*.local.pdf
+*.private.docx
+*.private.pdf
+
+# Generated outputs
 outputs/*
 !outputs/.gitkeep
-*.docx
-*.pdf
+exports/
+generated_resumes/
+*.generated.docx
+*.generated.pdf
+*.tailored.docx
+*.tailored.pdf
+
+# Streamlit/local config
+.streamlit/secrets.toml
+.env
+.env.*
+!.env.example
+
+# Ollama/local runtime artifacts if any are added later
+.ollama/
+models/
+
 *.log

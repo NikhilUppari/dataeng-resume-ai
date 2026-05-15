@@ -10,7 +10,7 @@ from generators.resume_tailor import render_resume_text, tailor_resume
 from parsers.jd_analyzer import analyze_jd
 from parsers.resume_parser import extract_resume_text, parse_resume_text
 from services.domain_detector import detect_domain
-from services.ollama_client import OllamaClient
+from services.ollama_client import OllamaClient, OllamaError
 from utils.docx_exporter import build_docx
 from utils.pdf_exporter import build_pdf
 from utils.schema import JobAnalysis, ResumeProfile
@@ -33,8 +33,15 @@ def main() -> None:
         model = st.selectbox("Ollama model", MODELS, index=0)
         ollama = OllamaClient()
         available = ollama.is_available()
-        st.status("Ollama connected" if available else "Ollama not detected", state="complete" if available else "error")
-        use_ai = st.toggle("Use Ollama enrichment", value=available, disabled=not available)
+        model_ready = available and ollama.has_model(model)
+        if model_ready:
+            st.status("Ollama connected", state="complete")
+        elif available:
+            st.status(f"Model not found: {model}", state="warning")
+            st.caption(f"Run `ollama pull {model}` in PowerShell, then refresh.")
+        else:
+            st.status("Ollama not detected", state="error")
+        use_ai = st.toggle("Use Ollama enrichment", value=model_ready, disabled=not model_ready)
         st.divider()
         if st.button("Load sample JD"):
             st.session_state["jd_text"] = (APP_DIR / "sample_data" / "sample_job_description.txt").read_text(encoding="utf-8")
@@ -112,7 +119,11 @@ def _analyze_jd(jd_text: str, model: str, use_ai: bool, ollama: OllamaClient) ->
         return analysis
 
     prompt = (APP_DIR / "prompts" / "jd_analysis_prompt.txt").read_text(encoding="utf-8")
-    payload = ollama.generate_json(model, f"{prompt}\n\nJOB DESCRIPTION:\n{jd_text}")
+    try:
+        payload = ollama.generate_json(model, f"{prompt}\n\nJOB DESCRIPTION:\n{jd_text}")
+    except OllamaError as exc:
+        st.warning(f"{exc}. Using local fallback analysis for this run.")
+        return analysis
     if not payload:
         return analysis
 

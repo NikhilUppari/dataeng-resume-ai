@@ -2,15 +2,10 @@ from __future__ import annotations
 
 from typing import Dict, List
 
+from services.client_registry import known_client_domain
+
 
 CLIENT_DOMAINS: Dict[str, str] = {
-    "cvs health": "Healthcare",
-    "oak street health": "Healthcare",
-    "hca healthcare": "Healthcare",
-    "northern trust": "Financial Services / Banking / Wealth Management / Asset Servicing",
-    "ebay": "Retail / E-commerce",
-    "united airlines": "Aviation",
-    "makemytrip": "Travel / Online Travel Platform",
 }
 
 DOMAIN_KEYWORDS: Dict[str, List[str]] = {
@@ -70,6 +65,10 @@ DOMAIN_KEYWORDS: Dict[str, List[str]] = {
 
 
 def detect_domain(client_name: str, resume_text: str = "") -> str:
+    known_domain = known_client_domain(client_name)
+    if known_domain:
+        return known_domain
+
     client_lower = (client_name or "").lower()
     for key, domain in CLIENT_DOMAINS.items():
         if key in client_lower:

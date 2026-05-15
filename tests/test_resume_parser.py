@@ -58,6 +58,48 @@ Master of Science
             ],
         )
 
+    def test_only_present_known_clients_are_returned(self):
+        resume_text = """
+PROFESSIONAL EXPERIENCE
+Client
+CVS Health Chicago, IL
+Senior Data Engineer | Jan 2024 - Present
+- Built healthcare data pipelines.
+
+Client
+HCA Healthcare Nashville, TN
+Data Engineer | Jan 2023 - Dec 2023
+- Built clinical reporting pipelines.
+
+Northern Trust Chicago, IL
+Data Engineer | Jan 2022 - Dec 2022
+- Built banking data ingestion pipelines.
+
+eBay San Jose, CA
+Data Engineer | Jan 2021 - Dec 2021
+- Built seller analytics pipelines.
+
+United Airlines Chicago, IL
+Data Engineer | Jan 2020 - Dec 2020
+- Built flight operations reporting pipelines.
+
+EDUCATION
+Master of Science
+"""
+
+        profile = parse_resume_text(resume_text)
+
+        self.assertEqual(
+            [experience.client_name for experience in profile.experiences],
+            [
+                "CVS Health",
+                "HCA Healthcare",
+                "Northern Trust",
+                "eBay",
+                "United Airlines",
+            ],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@ from typing import Dict, List
 
 
 CLIENT_DOMAINS: Dict[str, str] = {
+    "cvs health": "Healthcare",
     "oak street health": "Healthcare",
     "hca healthcare": "Healthcare",
     "northern trust": "Financial Services / Banking / Wealth Management / Asset Servicing",

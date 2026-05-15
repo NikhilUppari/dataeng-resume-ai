@@ -19,6 +19,7 @@ from utils.schema import JobAnalysis, ResumeProfile
 APP_DIR = Path(__file__).resolve().parent
 MODELS = ["llama3.1", "qwen2.5", "mistral", "deepseek-r1"]
 CLOUDS = ["AWS", "Azure", "GCP"]
+PARSER_CACHE_VERSION = "known-client-v2"
 
 
 def main() -> None:
@@ -71,7 +72,7 @@ def main() -> None:
 def _get_profile(uploaded_file) -> ResumeProfile | None:
     if uploaded_file is None:
         return None
-    cache_key = f"profile_{uploaded_file.name}_{uploaded_file.size}"
+    cache_key = f"profile_{PARSER_CACHE_VERSION}_{uploaded_file.name}_{uploaded_file.size}"
     if cache_key not in st.session_state:
         with st.spinner("Parsing resume..."):
             text = extract_resume_text(uploaded_file)

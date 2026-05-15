@@ -21,6 +21,16 @@ SECTION_PATTERNS = {
     "education": r"(education|academic)",
 }
 
+KNOWN_CLIENT_PATTERNS = [
+    ("CVS Health", r"\bcvs\s+health\b"),
+    ("Oak Street Health", r"\boak\s+street\s+health\b"),
+    ("HCA Healthcare", r"\bhca\s+healthcare\b"),
+    ("Northern Trust", r"\bnorthern\s+trust\b"),
+    ("eBay", r"\bebay\b"),
+    ("United Airlines", r"\bunited\s+airlines\b"),
+    ("MakeMyTrip", r"\bmake\s*my\s*trip\b"),
+]
+
 
 def extract_resume_text(uploaded_file) -> str:
     name = uploaded_file.name.lower()
@@ -132,6 +142,10 @@ def _parse_experiences(text: str, full_text: str) -> List[Experience]:
 
 
 def _experience_chunks(text: str) -> List[str]:
+    known_client_chunks = _known_client_chunks(text)
+    if len(known_client_chunks) >= 2:
+        return known_client_chunks
+
     client_matches = list(re.finditer(r"(?im)^\s*(?:client\s*[:|-]\s*)?([A-Za-z0-9&.,'() -]{3,})\s*$", text))
     filtered = [m for m in client_matches if _looks_like_client_line(m.group(0))]
     if len(filtered) >= 2:
@@ -153,22 +167,60 @@ def _experience_chunks(text: str) -> List[str]:
     return [text] if text else []
 
 
+def _known_client_chunks(text: str) -> List[str]:
+    matches: List[int] = []
+    seen_clients = set()
+    offset = 0
+
+    for line in text.splitlines(keepends=True):
+        stripped = line.strip()
+        client = _known_client_from_text(stripped)
+        if client and _is_probable_client_heading(stripped) and client.lower() not in seen_clients:
+            matches.append(offset)
+            seen_clients.add(client.lower())
+        offset += len(line)
+
+    if len(matches) < 2:
+        return []
+
+    chunks: List[str] = []
+    for idx, start in enumerate(matches):
+        end = matches[idx + 1] if idx + 1 < len(matches) else len(text)
+        chunks.append(text[start:end].strip())
+    return chunks
+
+
+def _is_probable_client_heading(line: str) -> bool:
+    lowered = line.lower()
+    if not line or line.startswith(("-", "*", "•")):
+        return False
+    if any(term in lowered for term in ["environment", "responsibilities", "summary", "skills", "education"]):
+        return False
+    return len(line) <= 120
+
+
+def _known_client_from_text(text: str) -> str:
+    for client, pattern in KNOWN_CLIENT_PATTERNS:
+        if re.search(pattern, text, flags=re.IGNORECASE):
+            return client
+    return ""
+
+
 def _looks_like_client_line(line: str) -> bool:
     lower = line.lower()
     if any(word in lower for word in ["summary", "skills", "education", "certification", "environment"]):
         return False
-    known = ["oak street", "hca", "northern trust", "ebay", "united airlines", "makemytrip"]
-    return lower.startswith("client") or any(name in lower for name in known)
+    return _known_client_from_text(line) != ""
 
 
 def _find_client(chunk: str) -> str:
     explicit = re.search(r"(?im)^\s*client\s*[:|-]\s*(.+?)\s*$", chunk)
     if explicit:
-        return explicit.group(1).strip()
-    known = ["Oak Street Health", "HCA Healthcare", "Northern Trust", "eBay", "United Airlines", "MakeMyTrip"]
-    for name in known:
-        if re.search(re.escape(name), chunk, flags=re.IGNORECASE):
-            return name
+        known = _known_client_from_text(explicit.group(1))
+        return known or explicit.group(1).strip()
+    known = _known_client_from_text(chunk)
+    if known:
+        return known
     for line in chunk.splitlines()[:4]:
         clean = line.strip(" |:-")
         if clean and not _find_dates(clean) and len(clean.split()) <= 8:

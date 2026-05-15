@@ -7,6 +7,7 @@ from docx import Document
 from docx.shared import Inches, Pt
 
 from utils.schema import TailoredResume
+from utils.technology_terms import is_known_technology, iter_tool_matches
 
 
 def build_docx(resume: TailoredResume) -> bytes:
@@ -28,11 +29,11 @@ def build_docx(resume: TailoredResume) -> bytes:
     _heading(document, "TECHNICAL SKILLS")
     for heading, values in resume.technical_skills.items():
         if values:
-            paragraph = document.add_paragraph()
+            paragraph = document.add_paragraph(style="List Bullet")
             paragraph.paragraph_format.space_after = Pt(2)
             run = paragraph.add_run(f"{heading}: ")
             run.bold = True
-            _add_tools_run(paragraph, values)
+            _add_values_run(paragraph, values, bold_tools=False)
 
     _heading(document, "PROFESSIONAL EXPERIENCE")
     for exp in resume.experiences:
@@ -57,7 +58,7 @@ def build_docx(resume: TailoredResume) -> bytes:
             paragraph = document.add_paragraph()
             paragraph.paragraph_format.space_after = Pt(6)
             paragraph.add_run("Environment: ").bold = True
-            _add_tools_run(paragraph, exp.environment)
+            _add_values_run(paragraph, exp.environment, bold_tools=True)
 
     if resume.certifications:
         _heading(document, "CERTIFICATIONS")
@@ -94,13 +95,13 @@ def _bullet_with_bold_tools(document: Document, text: str, tools: Iterable[str])
     paragraph = document.add_paragraph(style="List Bullet")
     paragraph.paragraph_format.space_after = Pt(2)
     matches = []
-    lower = text.lower()
-    for tool in sorted(set(tools), key=len, reverse=True):
-        start = lower.find(tool.lower())
-        if start >= 0:
-            end = start + len(tool)
+    candidates = [tool for tool in set(tools) if is_known_technology(tool)]
+    for tool in sorted(candidates, key=len, reverse=True):
+        for match in iter_tool_matches(text, tool):
+            start, end = match.span()
             if not any(start < existing_end and end > existing_start for existing_start, existing_end, _ in matches):
                 matches.append((start, end, text[start:end]))
+            break
     matches.sort(key=lambda item: item[0])
 
     cursor = 0
@@ -113,9 +114,11 @@ def _bullet_with_bold_tools(document: Document, text: str, tools: Iterable[str])
         paragraph.add_run(text[cursor:])
 
 
-def _add_tools_run(paragraph, values: Iterable[str]) -> None:
+def _add_values_run(paragraph, values: Iterable[str], *, bold_tools: bool) -> None:
     values = [value for value in values if value]
     for index, value in enumerate(values):
         if index:
             paragraph.add_run(", ")
-        paragraph.add_run(value).bold = True
+        run = paragraph.add_run(value)
+        if bold_tools and is_known_technology(value):
+            run.bold = True

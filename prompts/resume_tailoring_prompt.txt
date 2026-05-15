@@ -1,0 +1,5 @@
+Rewrite the resume for the target job description as a Senior Data Engineer.
+Preserve client names, dates, experience order, and broad resume structure.
+Tailor responsibilities to the selected cloud for each client, the job
+description, the domain, and realistic enterprise data engineering work.
+Avoid architect, led, headed, and managed-team language.

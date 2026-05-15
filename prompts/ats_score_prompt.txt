@@ -1,0 +1,3 @@
+Score the tailored resume against the job description. Return ATS match
+percentage, matched keywords, missing keywords, missing tools, cloud alignment
+score, domain alignment score, and practical suggestions.

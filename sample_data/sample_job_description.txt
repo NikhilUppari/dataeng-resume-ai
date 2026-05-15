@@ -1,0 +1,7 @@
+Senior Data Engineer
+
+We are looking for a Senior Data Engineer with strong experience designing and building cloud-native batch and streaming data pipelines. The ideal candidate has hands-on experience with Python, SQL, Spark, Databricks, orchestration, data warehousing, data lake patterns, CI/CD, data quality, and governance.
+
+Responsibilities include building reliable ETL/ELT workflows, ingesting structured and semi-structured data, optimizing warehouse models, supporting analytics and machine learning data products, implementing observability, and collaborating with product and analytics partners.
+
+Preferred skills include AWS Glue, S3, Redshift, Lambda, Step Functions, Kinesis, Snowflake, Airflow, dbt, Kafka, Docker, GitHub Actions, Terraform, Great Expectations, and Power BI.

@@ -1,0 +1,19 @@
+PROFESSIONAL SUMMARY
+Senior Data Engineer with experience building data pipelines, warehouses, and analytics solutions across cloud and big data platforms.
+
+TECHNICAL SKILLS
+Python, SQL, Spark, Airflow, Databricks, Snowflake, AWS, Azure, Kafka, Power BI
+
+PROFESSIONAL EXPERIENCE
+Client: Oak Street Health
+Senior Data Engineer | Jan 2024 - Present
+- Built healthcare data pipelines and reporting solutions.
+Environment: Python, SQL, Spark, Databricks, AWS
+
+Client: Northern Trust
+Data Engineer | Feb 2022 - Dec 2023
+- Developed banking data ingestion and reporting pipelines.
+Environment: Python, SQL, Spark, Azure
+
+EDUCATION
+Master of Science in Computer Science

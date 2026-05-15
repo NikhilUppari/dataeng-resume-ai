@@ -1,0 +1,3 @@
+Validate that each responsibility and environment section respects technology
+release timelines. Remove newer GenAI and cloud services from old experiences.
+Preserve client names, dates, and experience order.

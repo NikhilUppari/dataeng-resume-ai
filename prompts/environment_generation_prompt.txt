@@ -1,0 +1,3 @@
+Generate a realistic Environment section for each client. Align tools with the
+selected cloud, job description, client domain, and experience timeline. Recent
+roles should have richer environments than older roles.

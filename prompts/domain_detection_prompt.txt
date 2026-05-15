@@ -1,0 +1,3 @@
+Infer the business domain from client names and resume context. Use known client
+mapping when available. Return domain keywords that naturally fit the client and
+the job description.

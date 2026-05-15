@@ -1,0 +1,4 @@
+Generate an ATS-friendly Technical Skills section with dynamic subheadings.
+Include tools from the job description, selected clouds, client responsibilities,
+environment sections, and missing ATS keywords. Keep the skills truthful,
+timeline-aware, and aligned to data engineering roles.

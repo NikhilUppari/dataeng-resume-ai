@@ -1,0 +1,5 @@
+Parse the resume into strict JSON while preserving original client names, dates,
+experience order, job titles, certifications, education, environment sections,
+and all section names. Do not invent experience. Identify professional summary,
+technical skills, client experiences, responsibilities, environments, education,
+and certifications.

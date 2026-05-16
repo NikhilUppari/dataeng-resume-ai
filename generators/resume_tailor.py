@@ -9,6 +9,7 @@ from services.cloud_catalog import expand_cloud_services
 from services.domain_detector import infer_job_domain, is_enterprise_domain, keywords_for_domain, same_domain
 from services.timeline_validator import filter_timeline_safe, strip_timeline_unsafe_text
 from utils.schema import Experience, ResumeProfile, TailoredResume
+from utils.technology_terms import extract_known_technologies, is_known_technology
 from utils.text import clamp_words, dedupe_keep_order
 
 
@@ -29,6 +30,16 @@ ACTION_VERBS = [
 
 JD_TAILORED_EXPERIENCE_COUNT = 3
 BASELINE_DATA_STACK = ["Python", "SQL", "Spark", "Airflow", "Git", "data quality"]
+RESPONSIBILITY_COUNT_BY_CLIENT_ORDER = [28, 25, 23, 20, 18]
+BULLET_MIN_WORDS = 29
+BULLET_MAX_WORDS = 33
+BULLET_MIN_TECH_TERMS = 3
+BULLET_MAX_TECH_TERMS = 4
+BULLET_LENGTHENING_PHRASES = [
+    "while documenting lineage, release risks, and production handoff",
+    "while coordinating validation, deployment notes, and stakeholder handoff",
+    "while improving traceability, support readiness, and delivery documentation",
+]
 
 
 def tailor_resume(profile: ResumeProfile, jd: JobAnalysis, cloud_by_client: Dict[str, str], alignment_pass: int = 0) -> TailoredResume:
@@ -122,7 +133,6 @@ def _summary_responsibility_focus(jd: JobAnalysis) -> str:
 
 def _tailor_experiences(experiences: List[Experience], jd: JobAnalysis, cloud_by_client: Dict[str, str], job_domain: str) -> List[Experience]:
     tailored: List[Experience] = []
-    total = max(len(experiences), 1)
     jd_terms = all_jd_terms(jd)
     for index, exp in enumerate(experiences):
         tailor_to_jd = index < JD_TAILORED_EXPERIENCE_COUNT
@@ -131,9 +141,7 @@ def _tailor_experiences(experiences: List[Experience], jd: JobAnalysis, cloud_by
         cloud_tools = filter_timeline_safe(expand_cloud_services(selected_cloud, cloud_context_terms, jd.seniority_level), exp.dates)
         active_domain = _resolve_experience_domain(exp.domain, job_domain)
         domain_terms = _terms_for_experience_domain(active_domain, jd, job_domain, tailor_to_jd)
-        bullet_count = max(3, 7 - index) if total > 1 else 6
-        if index == 0:
-            bullet_count = max(bullet_count, 7)
+        bullet_count = _responsibility_count_for_client(index)
         responsibilities = _generate_bullets(exp, jd, selected_cloud, cloud_tools, active_domain, domain_terms, bullet_count, index, tailor_to_jd)
         environment = _generate_environment(exp, jd, selected_cloud, cloud_tools, index, tailor_to_jd)
         tailored.append(
@@ -192,9 +200,16 @@ def _generate_bullets(
             tool2=tool2,
             tool3=tool3,
         )
-        text = _ensure_tool_mentions(text, [tool1, tool2, tool3, tool4])
-        bullets.append(clamp_words(strip_timeline_unsafe_text(text, exp.dates)))
+        text = _ensure_tool_mentions(text, [cloud, tool1, tool2, tool3, tool4])
+        text = _fit_responsibility_word_range(strip_timeline_unsafe_text(text, exp.dates), idx)
+        bullets.append(text)
     return bullets
+
+
+def _responsibility_count_for_client(index: int) -> int:
+    if index < len(RESPONSIBILITY_COUNT_BY_CLIENT_ORDER):
+        return RESPONSIBILITY_COUNT_BY_CLIENT_ORDER[index]
+    return RESPONSIBILITY_COUNT_BY_CLIENT_ORDER[-1]
 
 
 def _generate_environment(exp: Experience, jd: JobAnalysis, cloud: str, cloud_tools: List[str], exp_index: int, tailor_to_jd: bool) -> List[str]:
@@ -211,7 +226,7 @@ def _generate_environment(exp: Experience, jd: JobAnalysis, cloud: str, cloud_to
     else:
         jd_subset = _jd_tool_subset_for_older_experience(jd, exp.client_name, exp_index)
         base = dedupe_keep_order([cloud] + jd_subset + cloud_tools + exp.environment + BASELINE_DATA_STACK)
-    complexity = 24
+    complexity = 40
     return filter_timeline_safe(base[:complexity], exp.dates)
 
 
@@ -258,17 +273,32 @@ def _jd_tool_subset_for_older_experience(jd: JobAnalysis, client_name: str, exp_
 
 
 def _ensure_tool_mentions(text: str, tools: List[str]) -> str:
-    unique_tools = dedupe_keep_order(tool for tool in tools if tool)
+    unique_tools = dedupe_keep_order(tool for tool in tools if tool and is_known_technology(tool))
     if not unique_tools:
         return text
-    lower = text.lower()
-    present = [tool for tool in unique_tools if tool.lower() in lower]
-    missing = [tool for tool in unique_tools if tool.lower() not in lower]
-    needed = max(0, min(4, len(unique_tools)) - len(present))
+    present = extract_known_technologies(text, unique_tools)
+    missing = [tool for tool in unique_tools if tool.lower() not in {item.lower() for item in present}]
+    needed = max(0, BULLET_MIN_TECH_TERMS - len(present))
     if needed == 0 or not missing:
         return text
-    additions = missing[:needed]
-    return text.rstrip(".") + f", with {', '.join(additions)} supporting validation, monitoring, and operational handoff."
+    additions = missing[: min(needed, max(0, BULLET_MAX_TECH_TERMS - len(present)))]
+    if not additions:
+        return text
+    return text.rstrip(".") + f", with {', '.join(additions)} supporting validation."
+
+
+def _fit_responsibility_word_range(text: str, phrase_offset: int = 0) -> str:
+    sentence = text.strip().rstrip(".")
+    phrase_index = phrase_offset
+    while len(sentence.split()) < BULLET_MIN_WORDS:
+        phrase = BULLET_LENGTHENING_PHRASES[phrase_index % len(BULLET_LENGTHENING_PHRASES)]
+        sentence = f"{sentence}, {phrase}"
+        phrase_index += 1
+
+    tokens = sentence.split()
+    if len(tokens) > BULLET_MAX_WORDS:
+        tokens = tokens[:BULLET_MAX_WORDS]
+    return " ".join(tokens).rstrip(",;") + "."
 
 
 def _patterns_for_domain(domain: str) -> List[str]:

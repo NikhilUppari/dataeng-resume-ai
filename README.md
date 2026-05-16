@@ -13,8 +13,9 @@ The app runs on your laptop with Streamlit and Ollama. It parses a DOCX or PDF r
 - Known client mapping for Oak Street Health, HCA Healthcare, Northern Trust, eBay, United Airlines, and MakeMyTrip
 - Timeline validation to avoid placing newer tools into older experience periods
 - Tailored professional summary, technical skills, responsibilities, and environment sections
+- Format-controlled client responsibilities with target counts by experience order and compact 29-33 word bullets
 - ATS analysis panel with match score, matched keywords, missing keywords, missing tools, cloud score, domain score, and suggestions
-- DOCX export through `python-docx`
+- ATS-friendly DOCX export through `python-docx` with Calibri 10pt body text, Title Case section headings, thin heading borders, and compact technical skills lines
 - PDF export through `docx2pdf` on Windows or `pypandoc` when configured
 - Optional local Ollama enrichment with `llama3.1`, `qwen2.5`, `mistral`, or `deepseek-r1`
 - Deterministic fallback generation when Ollama is not running
@@ -101,7 +102,18 @@ docs/screenshots/resume-preview.png
 
 ## Notes on Format Preservation
 
-The app preserves client names, dates, experience order, and section intent. DOCX export uses an ATS-friendly professional resume layout generated locally with `python-docx`. Exact visual preservation of complex original DOCX formatting can be improved by adding template-specific replacement rules in `templates/`.
+The app preserves client names, dates, experience order, and section intent. DOCX export uses an ATS-friendly professional resume layout generated locally with `python-docx`.
+
+Current DOCX formatting rules:
+
+- Body text uses Calibri 10pt.
+- Section headings use Title Case, Calibri 12pt, bold text, and a thin bottom border.
+- Technical skills render as compact category lines, such as `Cloud Platforms: AWS, Azure, S3, Glue, Redshift`.
+- Client experience headers render on one compact line: `Client: Client Name | Role | Dates | Domain`.
+- Responsibility bullets use tight spacing and bold known technical tools that appear in the bullet.
+- Client responsibility counts target 28 points for the current client, then 25, 23, 20, and 18 for older clients.
+
+Exact visual preservation of complex original DOCX formatting can be improved by adding template-specific replacement rules in `templates/`.
 
 ## Future Improvements
 

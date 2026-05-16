@@ -6,6 +6,7 @@ from generators.resume_tailor import render_resume_text, tailor_resume
 from services.ats_scorer import score_resume
 from services.resume_quality_gate import evaluate_resume_quality
 from utils.schema import Experience, JobAnalysis, ResumeProfile
+from utils.technology_terms import extract_known_technologies
 
 
 class ResumeTailoringDomainTests(unittest.TestCase):
@@ -69,7 +70,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             self.assertIn(expected, rendered)
         self.assertNotIn("reliably reliably", rendered)
 
-    def test_generated_responsibility_points_include_four_technical_tools(self) -> None:
+    def test_generated_responsibility_points_follow_word_and_technology_targets(self) -> None:
         profile = ResumeProfile(
             raw_text="Built healthcare data platforms.",
             experiences=[
@@ -89,8 +90,39 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         tool_terms = tailored.experiences[0].environment
 
         for point in tailored.experiences[0].responsibilities:
-            matches = [tool for tool in tool_terms if tool in point]
-            self.assertGreaterEqual(len(matches), 4, point)
+            matches = extract_known_technologies(point, tool_terms)
+            self.assertGreaterEqual(len(matches), 3, point)
+            self.assertLessEqual(len(matches), 4, point)
+            self.assertGreaterEqual(len(point.rstrip(".").split()), 29, point)
+            self.assertLessEqual(len(point.rstrip(".").split()), 33, point)
+
+    def test_client_responsibility_counts_follow_format_branch_targets(self) -> None:
+        clients = [
+            ("Oak Street Health", "Healthcare"),
+            ("Northern Trust", "Financial Services / Banking / Wealth Management / Asset Servicing"),
+            ("United Airlines", "Aviation"),
+            ("eBay", "Retail / E-commerce"),
+            ("MakeMyTrip", "Travel / Online Travel Platform"),
+        ]
+        profile = ResumeProfile(
+            raw_text="Multiple client data engineering history.",
+            experiences=[
+                Experience(client_name=client, dates="Jan 2021 - Present", domain=domain, environment=["Python", "SQL"])
+                for client, domain in clients
+            ],
+        )
+        jd = JobAnalysis(
+            data_tools=["Databricks", "Spark"],
+            databases=["Snowflake"],
+            streaming_tools=["Kafka"],
+            orchestration_tools=["Airflow"],
+            domain_keywords=["analytics platforms"],
+            seniority_level="Senior",
+        )
+
+        tailored = tailor_resume(profile, jd, {client: "AWS" for client, _ in clients})
+
+        self.assertEqual([len(exp.responsibilities) for exp in tailored.experiences], [28, 25, 23, 20, 18])
 
     def test_generic_experience_uses_detected_jd_domain(self) -> None:
         profile = ResumeProfile(

@@ -2,12 +2,20 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List
 
+from services.tailoring_strategy import ADJACENT_PLATFORM_ALIGNMENT, TELECOM_DOMAIN, TailoringStrategy
+from services.domain_detector import same_domain
 from utils.schema import JobAnalysis, TailoredResume
 from utils.technology_terms import is_known_technology
 from utils.text import dedupe_keep_order, keyword_match_ratio
 
 
-def score_resume(resume: TailoredResume | None, resume_text: str, jd: JobAnalysis, selected_clouds: Iterable[str]) -> Dict[str, object]:
+def score_resume(
+    resume: TailoredResume | None,
+    resume_text: str,
+    jd: JobAnalysis,
+    selected_clouds: Iterable[str],
+    tailoring_strategy: TailoringStrategy | None = None,
+) -> Dict[str, object]:
     jd_keywords = _scoreable_jd_terms(jd)
     keyword_score, matched, missing = keyword_match_ratio(jd_keywords, resume_text)
 
@@ -33,6 +41,7 @@ def score_resume(resume: TailoredResume | None, resume_text: str, jd: JobAnalysi
         cloud_missing=cloud_missing,
         domain_missing=domain_missing,
         missing_general_keywords=missing_general_keywords + missing_responsibilities,
+        tailoring_strategy=tailoring_strategy,
     )
 
     score_breakdown = {
@@ -61,6 +70,8 @@ def score_resume(resume: TailoredResume | None, resume_text: str, jd: JobAnalysi
         "domain_matched": domain_matched,
         "domain_missing": domain_missing,
         "suggestions": suggestions,
+        "tailoring_strategy": tailoring_strategy.name if tailoring_strategy else "",
+        "domain_gap_warning": _domain_gap_warning(tailoring_strategy),
     }
 
 
@@ -73,8 +84,11 @@ def _build_suggestions(
     cloud_missing: List[str],
     domain_missing: List[str],
     missing_general_keywords: List[str],
+    tailoring_strategy: TailoringStrategy | None = None,
 ) -> List[str]:
     suggestions: List[str] = []
+    if tailoring_strategy and tailoring_strategy.name == ADJACENT_PLATFORM_ALIGNMENT:
+        suggestions.append(_domain_gap_warning(tailoring_strategy))
     if missing_tools:
         suggestions.append(
             "Add truthful missing JD tools to the most recent three experiences first; older experiences should use about half of the JD tools plus strong selected-cloud coverage."
@@ -82,7 +96,10 @@ def _build_suggestions(
     if cloud_missing:
         suggestions.append("Increase selected-cloud coverage in skills and environment sections.")
     if domain_missing:
-        suggestions.append("Add missing domain terms naturally to recent experience bullets and the professional summary.")
+        if tailoring_strategy and tailoring_strategy.name == ADJACENT_PLATFORM_ALIGNMENT:
+            suggestions.append("Keep unmatched domain terms out of experience claims unless the source resume supports them; emphasize transferable platform, streaming, and reliability work instead.")
+        else:
+            suggestions.append("Add missing domain terms naturally to recent experience bullets and the professional summary.")
     if missing_general_keywords and keyword_score < 70:
         suggestions.append("Blend important missing responsibility phrases into bullets without keyword stuffing.")
     if keyword_score < 70:
@@ -98,6 +115,14 @@ def _build_suggestions(
     else:
         suggestions.append("Resume needs more tailoring before applying; focus on JD tools, recent experience bullets, and domain language.")
     return suggestions
+
+
+def _domain_gap_warning(tailoring_strategy: TailoringStrategy | None) -> str:
+    if not tailoring_strategy or tailoring_strategy.name != ADJACENT_PLATFORM_ALIGNMENT:
+        return ""
+    if same_domain(tailoring_strategy.job_domain, TELECOM_DOMAIN):
+        return "No direct telecom client experience detected; tailoring emphasizes truthful streaming, platform engineering, observability, and SRE overlap instead of telecom mediation ownership."
+    return f"No direct {tailoring_strategy.job_domain} client experience detected; tailoring emphasizes transferable engineering overlap instead of unsupported domain claims."
 
 
 def _score_rating(score: float) -> str:

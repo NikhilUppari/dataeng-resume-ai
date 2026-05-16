@@ -10,6 +10,7 @@ The app runs on your laptop with Streamlit and Ollama. It parses a DOCX or PDF r
 - Job description analyzer for required skills, preferred skills, tools, domains, responsibilities, certifications, and seniority
 - Per-client cloud selection for AWS, Azure, or GCP
 - Domain-aware generation for healthcare, finance/banking, retail/e-commerce, aviation, and travel
+- Truthful domain strategy that avoids unsupported domain claims and uses adjacent platform positioning when the JD domain has no matching resume client
 - Known client mapping for Oak Street Health, HCA Healthcare, Northern Trust, eBay, United Airlines, and MakeMyTrip
 - Timeline validation to avoid placing newer tools into older experience periods
 - Tailored professional summary, technical skills, responsibilities, and environment sections
@@ -79,6 +80,8 @@ streamlit run app.py
 
 Then open the local Streamlit URL shown in the terminal.
 
+For a full local setup walkthrough, see [docs/user_guides/run_locally.md](docs/user_guides/run_locally.md).
+
 ## Sample Usage
 
 1. Upload your existing resume as DOCX or PDF.
@@ -114,6 +117,16 @@ Current DOCX formatting rules:
 - Client responsibility counts target 28 points for the current client, then 25, 23, 20, and 18 for older clients.
 
 Exact visual preservation of complex original DOCX formatting can be improved by adding template-specific replacement rules in `templates/`.
+
+## Notes on Truthful Domain Tailoring
+
+The app now compares the JD domain with the resume's detected client domains before generating tailored experience bullets.
+
+- If the JD domain matches a resume client domain, the app can directly align that client's responsibilities to the JD.
+- If the JD domain does not match any resume client domain, the app uses adjacent-fit positioning instead of pretending direct domain experience.
+- For telecom mediation JDs without telecom client history, the app emphasizes transferable streaming, distributed systems, platform engineering, observability, and SRE experience.
+- Unsupported telecom claims such as direct ASN.1 decoding, CDR/UDR processing, OSS/BSS mediation ownership, and vendor platform work are not injected unless they already exist in the source resume.
+- The ATS panel shows a domain-gap warning when adjacent-fit positioning is used.
 
 ## Future Improvements
 

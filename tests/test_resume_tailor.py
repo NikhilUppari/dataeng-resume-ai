@@ -4,6 +4,7 @@ import unittest
 
 from generators.resume_tailor import render_resume_text, tailor_resume
 from services.ats_scorer import score_resume
+from services.domain_detector import infer_job_domain
 from services.resume_quality_gate import evaluate_resume_quality
 from utils.schema import Experience, JobAnalysis, ResumeProfile
 from utils.technology_terms import extract_known_technologies
@@ -213,9 +214,17 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             "cloud_alignment_score": 100.0,
             "domain_alignment_score": 90.0,
         }
+        adjacent = {
+            "ats_match_percentage": 58.0,
+            "keyword_score": 72.0,
+            "cloud_alignment_score": 100.0,
+            "domain_alignment_score": 20.0,
+            "tailoring_strategy": "adjacent_platform_alignment",
+        }
 
         self.assertFalse(evaluate_resume_quality(weak)["passed"])
         self.assertTrue(evaluate_resume_quality(strong)["passed"])
+        self.assertTrue(evaluate_resume_quality(adjacent)["passed"])
 
     def test_alignment_repair_pass_adds_remaining_gap_terms(self) -> None:
         profile = ResumeProfile(
@@ -286,6 +295,40 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertIn("inventory optimization", older_text)
         for cloud_tool in ["S3", "Glue", "EMR", "Redshift", "Kinesis", "MSK"]:
             self.assertIn(cloud_tool, older_text)
+
+    def test_telecom_jd_without_telecom_client_uses_adjacent_platform_positioning(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Healthcare, banking, retail, and aviation data engineering background.",
+            experiences=[
+                Experience(client_name="CVS Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL", "Kafka"]),
+                Experience(client_name="Northern Trust", dates="Jan 2023 - Dec 2023", domain="Financial Services / Banking / Wealth Management / Asset Servicing", environment=["Spark", "Airflow"]),
+                Experience(client_name="eBay", dates="Jan 2022 - Dec 2022", domain="Retail / E-commerce", environment=["Kubernetes", "Docker"]),
+            ],
+        )
+        jd = JobAnalysis(
+            required_skills=["Java", "Spring Boot", "Spring Kafka", "Golang", "ASN.1", "CDR", "OSS/BSS", "Nokia", "Ericsson"],
+            data_tools=["Spark"],
+            databases=["Oracle"],
+            streaming_tools=["Kafka", "Flink"],
+            orchestration_tools=["Kubernetes", "OpenShift", "Helm"],
+            domain_keywords=["telecom", "telecom mediation", "ASN.1", "CDR", "UDR", "3GPP", "OSS/BSS", "Nokia", "Ericsson"],
+            responsibilities=["Build telecom mediation systems for CDR and UDR processing using ASN.1 decoding."],
+            seniority_level="Senior",
+        )
+
+        self.assertEqual(infer_job_domain(jd), "Telecom / Mediation / Network Platforms")
+
+        tailored = tailor_resume(profile, jd, {"CVS Health": "AWS", "Northern Trust": "AWS", "eBay": "AWS"})
+        rendered = render_resume_text(tailored)
+
+        self.assertEqual(tailored.ats_score["tailoring_strategy"], "adjacent_platform_alignment")
+        self.assertIn("No direct telecom client experience detected", tailored.ats_score["domain_gap_warning"])
+        for expected in ["Kafka", "Flink", "Kubernetes", "OpenShift", "Prometheus", "Grafana"]:
+            self.assertIn(expected, rendered)
+        for blocked in ["Nokia", "Ericsson", "ASN.1", "CDR", "UDR", "OSS/BSS", "3GPP"]:
+            self.assertNotIn(blocked, rendered)
+        self.assertIn("streaming and platform engineering", " ".join(tailored.summary))
+        self.assertIn("telecom-style operational event workloads", " ".join(tailored.summary))
 
 
 if __name__ == "__main__":

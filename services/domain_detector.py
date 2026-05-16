@@ -12,6 +12,20 @@ CLIENT_DOMAINS: Dict[str, str] = {
 ENTERPRISE_DOMAIN = "Enterprise Data Engineering"
 
 DOMAIN_KEYWORDS: Dict[str, List[str]] = {
+    "Telecom / Mediation / Network Platforms": [
+        "telecom mediation",
+        "carrier-grade systems",
+        "network event processing",
+        "CDR",
+        "UDR",
+        "AMA records",
+        "ASN.1",
+        "3GPP",
+        "OSS/BSS",
+        "charging systems",
+        "mediation engines",
+        "packet mediation",
+    ],
     "Healthcare": [
         "HIPAA",
         "PHI",
@@ -67,6 +81,28 @@ DOMAIN_KEYWORDS: Dict[str, List[str]] = {
 }
 
 DOMAIN_SIGNALS: Dict[str, List[str]] = {
+    "Telecom / Mediation / Network Platforms": [
+        "telecom",
+        "telecommunication",
+        "mediation",
+        "carrier",
+        "network event",
+        "cdr",
+        "udr",
+        "ama record",
+        "asn.1",
+        "3gpp",
+        "oss/bss",
+        "oss",
+        "bss",
+        "charging system",
+        "packet mediation",
+        "nokia",
+        "ericsson",
+        "samsung",
+        "cisco",
+        "ciena",
+    ],
     "Healthcare": [
         "healthcare",
         "health care",

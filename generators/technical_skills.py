@@ -4,6 +4,8 @@ from typing import Dict, Iterable, List
 
 from parsers.jd_analyzer import JobAnalysis, all_jd_terms
 from services.cloud_catalog import COMMON_DATA_STACK, CLOUD_SERVICES, expand_cloud_services
+from services.domain_detector import same_domain
+from services.tailoring_strategy import ADJACENT_PLATFORM_ALIGNMENT, TELECOM_DOMAIN, TailoringStrategy
 from utils.schema import Experience, ResumeProfile
 from utils.technology_terms import extract_known_technologies, is_known_technology
 from utils.text import dedupe_keep_order
@@ -14,6 +16,7 @@ def generate_technical_skills(
     jd: JobAnalysis,
     cloud_by_client: Dict[str, str],
     tailored_experiences: Iterable[Experience] | None = None,
+    tailoring_strategy: TailoringStrategy | None = None,
 ) -> Dict[str, List[str]]:
     selected_clouds = dedupe_keep_order(cloud for cloud in cloud_by_client.values() if cloud)
     cloud_services: List[str] = []
@@ -29,6 +32,12 @@ def generate_technical_skills(
         for tool in jd_tools + cloud_services + experience_tools + existing_tools + COMMON_DATA_STACK
         if is_known_technology(tool)
     )
+    if (
+        tailoring_strategy
+        and tailoring_strategy.name == ADJACENT_PLATFORM_ALIGNMENT
+        and same_domain(tailoring_strategy.job_domain, TELECOM_DOMAIN)
+    ):
+        return _telecom_adjacent_skills(selected_clouds, jd, role_tools, cloud_services, tailoring_strategy)
 
     return {
         "Cloud Platforms": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(role_tools, _cloud_terms())), 60),
@@ -47,6 +56,24 @@ def generate_technical_skills(
         "Monitoring & Observability": _limit(dedupe_keep_order(_matching_tools(role_tools, _MONITORING_TOOLS) + ["logging", "alerting", "SLA monitoring"])),
         "Testing & Data Quality": _limit(dedupe_keep_order(_matching_tools(role_tools, _TESTING_TOOLS) + ["unit testing", "reconciliation checks", "schema validation"])),
         "Additional ATS Keywords": _additional_keywords(role_tools, jd),
+    }
+
+
+def _telecom_adjacent_skills(
+    selected_clouds: List[str],
+    jd: JobAnalysis,
+    role_tools: List[str],
+    cloud_services: List[str],
+    tailoring_strategy: TailoringStrategy,
+) -> Dict[str, List[str]]:
+    platform_tools = dedupe_keep_order(tailoring_strategy.adjacent_terms + role_tools + jd.required_skills + jd.preferred_skills)
+    return {
+        "Streaming & Distributed Systems": _limit(dedupe_keep_order(jd.streaming_tools + _matching_tools(platform_tools, _STREAMING_TOOLS) + ["event-driven architecture"]), 18),
+        "Backend & Platform Engineering": _limit(dedupe_keep_order(_matching_tools(platform_tools, _BACKEND_PLATFORM_TOOLS) + ["REST APIs", "async processing"]), 18),
+        "Cloud & Containers": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(platform_tools + cloud_services, _cloud_terms() + _CONTAINER_TOOLS)), 22),
+        "Observability & SRE": _limit(dedupe_keep_order(_matching_tools(platform_tools, _MONITORING_TOOLS + _SRE_TERMS) + ["SLO/SLI", "incident response", "root cause analysis"]), 18),
+        "Data Stores & File Processing": _limit(dedupe_keep_order(jd.databases + _matching_tools(platform_tools, _DATABASE_TOOLS + _FILE_PROCESSING_TERMS) + ["SQL optimization", "partitioning"]), 18),
+        "Data Engineering Core": _limit(dedupe_keep_order(jd.data_tools + jd.etl_tools + _matching_tools(platform_tools, _BIG_DATA_TOOLS + _ETL_TOOLS)), 18),
     }
 
 
@@ -166,12 +193,16 @@ _ETL_TOOLS = [
 _WAREHOUSE_TOOLS = ["Snowflake", "Redshift", "Amazon Redshift", "BigQuery", "Synapse", "Databricks SQL", "SQL Server"]
 _DATABASE_TOOLS = ["PostgreSQL", "SQL Server", "MySQL", "Oracle", "DynamoDB", "Cosmos DB", "BigQuery", "Redshift", "Snowflake", "Teradata", "MongoDB", "NoSQL", "RDS", "Spanner", "Bigtable", "Cloud SQL"]
 _STREAMING_TOOLS = ["Kafka", "Apache Kafka", "Kinesis", "Amazon Kinesis", "Pub/Sub", "Event Hub", "Spark Streaming", "Spark Structured Streaming", "Flink", "MSK", "Amazon MSK", "Stream Analytics"]
-_PROGRAMMING_TOOLS = ["Python", "SQL", "PySpark", "Scala", "Java", "PL/SQL", "Shell Scripting", "Unix Shell Scripting"]
+_PROGRAMMING_TOOLS = ["Python", "SQL", "PySpark", "Scala", "Java", "Golang", "Go", "PL/SQL", "Shell Scripting", "Unix Shell Scripting"]
 _ORCHESTRATION_TOOLS = ["Airflow", "Apache Airflow", "Composer", "Control-M", "Autosys", "Step Functions", "ADF", "Azure Data Factory", "Prefect", "Dagster", "MWAA"]
-_DEVOPS_TOOLS = ["Git", "GitHub Actions", "Jenkins", "Docker", "Kubernetes", "Terraform", "CI/CD", "CodePipeline", "CodeBuild", "Cloud Build", "Azure DevOps", "DevOps", "Bicep", "ECS", "EKS", "AKS", "GKE"]
+_DEVOPS_TOOLS = ["Git", "GitHub Actions", "Jenkins", "Docker", "Kubernetes", "OpenShift", "Helm", "Terraform", "CI/CD", "CodePipeline", "CodeBuild", "Cloud Build", "Azure DevOps", "DevOps", "Bicep", "ECS", "EKS", "AKS", "GKE"]
 _GOVERNANCE_TOOLS = ["Unity Catalog", "Purview", "Lake Formation", "IAM", "KMS", "Key Vault", "Secrets Manager", "Secret Manager", "CloudTrail", "RBAC"]
 _AI_ML_TOOLS = ["SageMaker", "Amazon SageMaker", "Bedrock", "Vertex AI", "Azure ML", "Azure OpenAI", "Gemini", "MLflow", "scikit-learn", "Spark MLlib", "Pandas", "NumPy"]
 _API_TOOLS = ["REST API", "REST APIs", "API Gateway", "Service Bus", "Logic Apps", "EventBridge", "CDC"]
 _BI_TOOLS = ["Power BI", "Tableau", "QuickSight", "Looker"]
-_MONITORING_TOOLS = ["CloudWatch", "Azure Monitor", "Cloud Monitoring", "OpenSearch"]
+_MONITORING_TOOLS = ["CloudWatch", "Azure Monitor", "Cloud Monitoring", "OpenSearch", "Prometheus", "Grafana", "OpenTelemetry", "Jaeger", "ELK", "EFK"]
 _TESTING_TOOLS = ["Great Expectations", "Soda"]
+_BACKEND_PLATFORM_TOOLS = ["Java", "Golang", "Go", "Spring Boot", "Spring Kafka", "Spring Batch", "REST API", "REST APIs", "Docker", "Kubernetes", "OpenShift", "Helm"]
+_CONTAINER_TOOLS = ["Docker", "Kubernetes", "OpenShift", "Helm", "ECS", "EKS", "AKS", "GKE"]
+_SRE_TERMS = ["SLO/SLI", "incident response", "root cause analysis", "auto-remediation", "production support"]
+_FILE_PROCESSING_TERMS = ["SFTP", "object storage", "file ingestion", "partitioning", "Oracle", "SQL"]

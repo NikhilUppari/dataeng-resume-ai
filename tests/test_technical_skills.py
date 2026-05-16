@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from generators.technical_skills import generate_technical_skills
+from services.tailoring_strategy import ADJACENT_PLATFORM_ALIGNMENT, TELECOM_DOMAIN, TailoringStrategy
 from utils.schema import Experience, JobAnalysis, ResumeProfile
 
 
@@ -63,6 +64,35 @@ class TechnicalSkillsGenerationTests(unittest.TestCase):
         self.assertIn("Azure Data Factory", skills["Cloud Platforms"])
         self.assertIn("Composer", skills["Orchestration"])
         self.assertIn("Power BI", skills["BI & Visualization"])
+
+    def test_adjacent_telecom_strategy_keeps_skills_streaming_platform_focused(self) -> None:
+        profile = ResumeProfile(raw_text="Healthcare and finance streaming platforms.")
+        jd = JobAnalysis(
+            required_skills=["Java", "Spring Boot", "Spring Kafka", "Golang", "ASN.1", "CDR"],
+            databases=["Oracle"],
+            streaming_tools=["Kafka", "Flink"],
+            orchestration_tools=["Kubernetes", "OpenShift", "Helm"],
+            domain_keywords=["telecom", "CDR", "ASN.1"],
+            seniority_level="Senior",
+        )
+        strategy = TailoringStrategy(
+            name=ADJACENT_PLATFORM_ALIGNMENT,
+            job_domain=TELECOM_DOMAIN,
+            adjacent_terms=["Kafka", "Flink", "Kubernetes", "OpenShift", "Helm", "Java", "Spring Boot", "Golang"],
+            blocked_claim_terms=["ASN.1", "CDR"],
+        )
+
+        skills = generate_technical_skills(profile, jd, {"A": "AWS"}, tailoring_strategy=strategy)
+        flattened = _flatten(skills)
+
+        self.assertIn("Streaming & Distributed Systems", skills)
+        self.assertIn("Backend & Platform Engineering", skills)
+        self.assertIn("Observability & SRE", skills)
+        for expected in ["Kafka", "Flink", "Spring Boot", "Kubernetes", "OpenShift", "Helm", "Oracle"]:
+            self.assertIn(expected, flattened)
+        self.assertNotIn("ASN.1", flattened)
+        self.assertNotIn("CDR", flattened)
+        self.assertNotIn("AI/ML & GenAI", skills)
 
 
 def _flatten(skills):

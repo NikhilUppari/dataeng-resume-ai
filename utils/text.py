@@ -52,6 +52,4 @@ def clamp_words(sentence: str, minimum: int = 28, maximum: int = 32) -> str:
     tokens = sentence.strip().rstrip(".").split()
     if len(tokens) > maximum:
         tokens = tokens[:maximum]
-    while len(tokens) < minimum:
-        tokens.append("reliably")
     return " ".join(tokens).rstrip(",;") + "."

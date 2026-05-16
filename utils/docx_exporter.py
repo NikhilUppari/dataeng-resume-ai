@@ -58,7 +58,7 @@ def build_docx(resume: TailoredResume) -> bytes:
             paragraph = document.add_paragraph()
             paragraph.paragraph_format.space_after = Pt(6)
             paragraph.add_run("Environment: ").bold = True
-            _add_values_run(paragraph, exp.environment, bold_tools=True)
+            _add_values_run(paragraph, exp.environment, bold_tools=False)
 
     if resume.certifications:
         _heading(document, "CERTIFICATIONS")

@@ -11,7 +11,7 @@ class OllamaError(RuntimeError):
 
 
 class OllamaClient:
-    def __init__(self, base_url: str = "http://localhost:11434", timeout: int = 360) -> None:
+    def __init__(self, base_url: str = "http://localhost:11434", timeout: int = 480) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 

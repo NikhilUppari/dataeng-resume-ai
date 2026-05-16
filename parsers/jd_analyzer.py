@@ -19,21 +19,36 @@ TECH_GROUPS: Dict[str, List[str]] = {
 }
 
 DOMAIN_TERMS = [
+    "healthcare",
+    "clinical",
     "HIPAA",
     "PHI",
     "FHIR",
     "HL7",
+    "provider",
+    "payer",
     "PCI-DSS",
     "SOX",
     "AML",
     "KYC",
+    "banking",
+    "financial",
     "fraud",
     "risk",
+    "regulatory",
     "claims",
     "patient",
     "inventory",
+    "e-commerce",
+    "retail",
+    "seller",
+    "supply chain",
     "flight",
+    "airline",
+    "crew",
     "booking",
+    "itinerary",
+    "hotel",
 ]
 
 RESPONSIBILITY_VERBS = [

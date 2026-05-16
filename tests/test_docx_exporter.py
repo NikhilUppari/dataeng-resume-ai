@@ -38,7 +38,7 @@ class DocxExporterBoldFormattingTests(unittest.TestCase):
         self.assertNotIn("35%", bold_text)
         self.assertNotIn("order pipelines", bold_text)
 
-    def test_environment_section_bolds_tools_but_not_business_phrases_or_metrics(self) -> None:
+    def test_environment_section_bolds_only_label_not_tools(self) -> None:
         document = _build_sample_document()
 
         environment = _paragraph_containing(document, "Environment: AWS, Glue")
@@ -46,9 +46,9 @@ class DocxExporterBoldFormattingTests(unittest.TestCase):
         bold_text = "".join(bold_runs)
 
         self.assertIn("Environment: ", bold_runs)
-        self.assertIn("AWS", bold_text)
-        self.assertIn("Glue", bold_text)
-        self.assertIn("SQL", bold_text)
+        self.assertNotIn("AWS", bold_text)
+        self.assertNotIn("Glue", bold_text)
+        self.assertNotIn("SQL", bold_text)
         self.assertNotIn("patient analytics", bold_text)
         self.assertNotIn("35%", bold_text)
         self.assertNotIn("order pipelines", bold_text)

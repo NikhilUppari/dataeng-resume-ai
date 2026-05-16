@@ -29,8 +29,8 @@ ACTION_VERBS = [
 
 
 def tailor_resume(profile: ResumeProfile, jd: JobAnalysis, cloud_by_client: Dict[str, str]) -> TailoredResume:
-    skills = generate_technical_skills(profile, jd, cloud_by_client)
     tailored_experiences = _tailor_experiences(profile.experiences, jd, cloud_by_client)
+    skills = generate_technical_skills(profile, jd, cloud_by_client, tailored_experiences)
     summary = _generate_summary(jd, skills, tailored_experiences)
     placeholder = TailoredResume(
         summary=summary,

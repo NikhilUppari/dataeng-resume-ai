@@ -51,6 +51,28 @@ Generated output formats:
 - DOCX
 - PDF when your local PDF conversion setup is available
 
+## Generated Resume Formatting
+
+The DOCX output is generated with a compact ATS-friendly layout:
+
+- Body text uses Calibri 10pt.
+- Section headings use Title Case, Calibri 12pt, bold text, and a thin bottom border.
+- Technical skills are written as compact category lines, such as `Cloud Platforms: AWS, Azure, S3, Glue, Redshift`.
+- Each client header is kept on one line when data is available: `Client: Client Name | Role | Dates | Domain`.
+- Client responsibility counts target 28 points for the current client, then 25, 23, 20, and 18 for older clients.
+- Responsibility bullets target 29-33 words and bold known technical tools, skills, and platforms when they appear in the bullet.
+- Bullets use tight spacing to keep long experience sections readable without adding unnecessary pages.
+
+## Truthful Domain Tailoring
+
+Before generating the tailored resume, the app compares the job description domain with the domains detected from your resume's client experience.
+
+- If the job description matches one of your client domains, the app directly aligns that client experience to the JD.
+- If the JD domain does not appear in your resume, the app avoids pretending direct domain experience.
+- For example, a telecom mediation JD with no telecom client in the resume is treated as an adjacent platform fit. The resume emphasizes Kafka, Flink, distributed systems, Kubernetes/OpenShift, observability, SRE, and high-volume event processing instead of claiming direct telecom mediation ownership.
+- The app avoids unsupported claims such as ASN.1 decoding, CDR/UDR processing, OSS/BSS mediation ownership, or Nokia/Ericsson/Samsung/Cisco/Ciena platform work unless those terms already exist in the source resume.
+- The ATS panel displays a domain-gap warning when adjacent-fit positioning is used.
+
 ## First-Time Setup
 
 Open PowerShell in the project folder:

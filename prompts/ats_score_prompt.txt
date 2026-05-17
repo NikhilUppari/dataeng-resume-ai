@@ -1,3 +1,8 @@
 Score the tailored resume against the job description. Return ATS match
 percentage, matched keywords, missing keywords, missing tools, cloud alignment
 score, domain alignment score, and practical suggestions.
+Also evaluate truthfulness. If the JD asks for a domain that is not present in
+the resume's client history, report a domain-gap warning and recommend
+transferable positioning instead of unsupported domain claims. For telecom
+mediation roles, do not reward fake ASN.1, CDR/UDR, OSS/BSS, 3GPP, charging
+system, or telecom vendor claims unless the source resume supports them.

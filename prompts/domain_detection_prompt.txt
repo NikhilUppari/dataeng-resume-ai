@@ -1,3 +1,9 @@
 Infer the business domain from client names and resume context. Use known client
 mapping when available. Return domain keywords that naturally fit the client and
 the job description.
+Separate explicit domain evidence from generic technical skills. Kafka, Flink,
+Kubernetes, cloud, and streaming terms alone should not imply telecom. Telecom
+domain evidence requires terms such as telecom, mediation, carrier-grade
+systems, CDR/UDR, ASN.1, AMA records, 3GPP, OSS/BSS, charging systems, network
+events, or telecom vendor context. If a JD domain has no matching resume client
+domain, flag it as an adjacent technical fit rather than a direct domain match.

@@ -7,8 +7,16 @@ from parsers.jd_analyzer import JobAnalysis, all_jd_terms
 from services.ats_scorer import score_resume
 from services.cloud_catalog import expand_cloud_services
 from services.domain_detector import infer_job_domain, is_enterprise_domain, keywords_for_domain, same_domain
+from services.tailoring_strategy import (
+    ADJACENT_PLATFORM_ALIGNMENT,
+    TELECOM_DOMAIN,
+    TailoringStrategy,
+    determine_tailoring_strategy,
+    filter_blocked_claim_terms,
+)
 from services.timeline_validator import filter_timeline_safe, strip_timeline_unsafe_text
 from utils.schema import Experience, ResumeProfile, TailoredResume
+from utils.technology_terms import extract_known_technologies, is_known_technology
 from utils.text import clamp_words, dedupe_keep_order
 
 
@@ -29,13 +37,27 @@ ACTION_VERBS = [
 
 JD_TAILORED_EXPERIENCE_COUNT = 3
 BASELINE_DATA_STACK = ["Python", "SQL", "Spark", "Airflow", "Git", "data quality"]
+RESPONSIBILITY_COUNT_BY_CLIENT_ORDER = [28, 25, 23, 20, 18]
+BULLET_MIN_WORDS = 29
+BULLET_MAX_WORDS = 33
+BULLET_MIN_TECH_TERMS = 3
+BULLET_MAX_TECH_TERMS = 4
+BULLET_LENGTHENING_PHRASES = [
+    "while tuning throughput, retry behavior, and operational recovery",
+    "while improving deployment readiness, service metrics, and support handoff",
+    "while strengthening traceability, release quality, and production triage",
+    "while coordinating validation, rollout notes, and incident playbooks",
+    "while improving partition strategy, alert routing, and capacity planning",
+    "while reducing manual checks through automation, dashboards, and runbooks",
+]
 
 
 def tailor_resume(profile: ResumeProfile, jd: JobAnalysis, cloud_by_client: Dict[str, str], alignment_pass: int = 0) -> TailoredResume:
     job_domain = infer_job_domain(jd)
-    tailored_experiences = _tailor_experiences(profile.experiences, jd, cloud_by_client, job_domain)
-    skills = generate_technical_skills(profile, jd, cloud_by_client, tailored_experiences)
-    summary = _generate_summary(jd, skills, tailored_experiences, job_domain)
+    strategy = determine_tailoring_strategy(profile, jd, job_domain)
+    tailored_experiences = _tailor_experiences(profile.experiences, jd, cloud_by_client, job_domain, strategy)
+    skills = generate_technical_skills(profile, jd, cloud_by_client, tailored_experiences, strategy)
+    summary = _generate_summary(jd, skills, tailored_experiences, job_domain, strategy)
     placeholder = TailoredResume(
         summary=summary,
         technical_skills=skills,
@@ -45,9 +67,9 @@ def tailor_resume(profile: ResumeProfile, jd: JobAnalysis, cloud_by_client: Dict
         ats_score={},
     )
     if alignment_pass > 0:
-        _apply_alignment_repair(placeholder, jd, cloud_by_client, alignment_pass)
+        _apply_alignment_repair(placeholder, jd, cloud_by_client, alignment_pass, strategy)
     text = render_resume_text(placeholder)
-    placeholder.ats_score = score_resume(placeholder, text, jd, cloud_by_client.values())
+    placeholder.ats_score = score_resume(placeholder, text, jd, cloud_by_client.values(), strategy)
     return placeholder
 
 
@@ -77,7 +99,13 @@ def render_resume_text(resume: TailoredResume) -> str:
     return "\n".join(lines).strip()
 
 
-def _generate_summary(jd: JobAnalysis, skills: Dict[str, List[str]], experiences: List[Experience], job_domain: str) -> List[str]:
+def _generate_summary(
+    jd: JobAnalysis,
+    skills: Dict[str, List[str]],
+    experiences: List[Experience],
+    job_domain: str,
+    strategy: TailoringStrategy,
+) -> List[str]:
     clouds = ", ".join(skills.get("Cloud Platforms", [])[:8])
     domains = dedupe_keep_order([job_domain] + [exp.domain for exp in experiences])
     domain_text = ", ".join(domains[:3]) if domains else "enterprise analytics"
@@ -87,6 +115,15 @@ def _generate_summary(jd: JobAnalysis, skills: Dict[str, List[str]], experiences
     responsibility_focus = _summary_responsibility_focus(jd)
     seniority = jd.seniority_level or "Senior"
     genai = ", ".join(skills.get("AI/ML & GenAI", [])[:4])
+    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
+        adjacent_tools = filter_blocked_claim_terms(dedupe_keep_order(strategy.adjacent_terms + _summary_tools(jd)), strategy)
+        adjacent = ", ".join(adjacent_tools[:8])
+        return [
+            f"{seniority} Data Engineer focused on distributed streaming and platform engineering, aligning {adjacent} experience to telecom-style operational event workloads.",
+            "Background spans enterprise data platforms across existing client domains, with transferable ownership of high-volume ingestion, event-driven processing, and production reliability.",
+            "Hands-on delivery includes Kafka/Flink-style streaming patterns, containerized deployments, observability, incident response, and throughput tuning without overstating direct mediation ownership.",
+            "Strong fit for teams needing scalable platform engineering, SRE discipline, and adaptable data processing patterns for carrier-grade workload expectations.",
+        ]
     return [
         f"{seniority} Data Engineer tailored for {domain_text} roles, using {cloud_focus or clouds} with {core_tools} to deliver JD-aligned data platforms and analytics products.",
         f"Strong match for {domain_keywords} requirements, with hands-on delivery across orchestration, data warehousing, streaming ingestion, governance, and data quality controls.",
@@ -120,22 +157,25 @@ def _summary_responsibility_focus(jd: JobAnalysis) -> str:
     return "building batch and streaming data products"
 
 
-def _tailor_experiences(experiences: List[Experience], jd: JobAnalysis, cloud_by_client: Dict[str, str], job_domain: str) -> List[Experience]:
+def _tailor_experiences(
+    experiences: List[Experience],
+    jd: JobAnalysis,
+    cloud_by_client: Dict[str, str],
+    job_domain: str,
+    strategy: TailoringStrategy,
+) -> List[Experience]:
     tailored: List[Experience] = []
-    total = max(len(experiences), 1)
     jd_terms = all_jd_terms(jd)
     for index, exp in enumerate(experiences):
         tailor_to_jd = index < JD_TAILORED_EXPERIENCE_COUNT
         selected_cloud = cloud_by_client.get(exp.client_name, exp.selected_cloud or "AWS")
         cloud_context_terms = jd_terms if tailor_to_jd else []
         cloud_tools = filter_timeline_safe(expand_cloud_services(selected_cloud, cloud_context_terms, jd.seniority_level), exp.dates)
-        active_domain = _resolve_experience_domain(exp.domain, job_domain)
-        domain_terms = _terms_for_experience_domain(active_domain, jd, job_domain, tailor_to_jd)
-        bullet_count = max(3, 7 - index) if total > 1 else 6
-        if index == 0:
-            bullet_count = max(bullet_count, 7)
-        responsibilities = _generate_bullets(exp, jd, selected_cloud, cloud_tools, active_domain, domain_terms, bullet_count, index, tailor_to_jd)
-        environment = _generate_environment(exp, jd, selected_cloud, cloud_tools, index, tailor_to_jd)
+        active_domain = _resolve_experience_domain(exp.domain, job_domain, strategy)
+        domain_terms = _terms_for_experience_domain(active_domain, jd, job_domain, tailor_to_jd, strategy)
+        bullet_count = _responsibility_count_for_client(index)
+        responsibilities = _generate_bullets(exp, jd, selected_cloud, cloud_tools, active_domain, domain_terms, bullet_count, index, tailor_to_jd, strategy)
+        environment = _generate_environment(exp, jd, selected_cloud, cloud_tools, index, tailor_to_jd, strategy)
         tailored.append(
             Experience(
                 client_name=exp.client_name,
@@ -161,11 +201,12 @@ def _generate_bullets(
     count: int,
     exp_index: int,
     tailor_to_jd: bool,
+    strategy: TailoringStrategy,
 ) -> List[str]:
-    data_tools = _tools_for_experience(exp, jd, tailor_to_jd, exp_index)
+    data_tools = _tools_for_experience(exp, jd, tailor_to_jd, exp_index, strategy)
     verbs = ACTION_VERBS[exp_index % len(ACTION_VERBS) :] + ACTION_VERBS[: exp_index % len(ACTION_VERBS)]
-    patterns = _patterns_for_domain(active_domain)
-    focus = _focus_for_experience(active_domain, exp.client_name, exp_index)
+    patterns = _patterns_for_strategy(active_domain, strategy)
+    focus = _focus_for_strategy(active_domain, exp.client_name, exp_index, strategy)
     bullets: List[str] = []
     if tailor_to_jd:
         tools = dedupe_keep_order(data_tools + cloud_tools)
@@ -192,15 +233,32 @@ def _generate_bullets(
             tool2=tool2,
             tool3=tool3,
         )
-        text = _ensure_tool_mentions(text, [tool1, tool2, tool3, tool4])
-        bullets.append(clamp_words(strip_timeline_unsafe_text(text, exp.dates)))
+        text = _ensure_tool_mentions(text, [cloud, tool1, tool2, tool3, tool4])
+        text = _fit_responsibility_word_range(strip_timeline_unsafe_text(text, exp.dates), idx)
+        bullets.append(text)
     return bullets
 
 
-def _generate_environment(exp: Experience, jd: JobAnalysis, cloud: str, cloud_tools: List[str], exp_index: int, tailor_to_jd: bool) -> List[str]:
+def _responsibility_count_for_client(index: int) -> int:
+    if index < len(RESPONSIBILITY_COUNT_BY_CLIENT_ORDER):
+        return RESPONSIBILITY_COUNT_BY_CLIENT_ORDER[index]
+    return RESPONSIBILITY_COUNT_BY_CLIENT_ORDER[-1]
+
+
+def _generate_environment(
+    exp: Experience,
+    jd: JobAnalysis,
+    cloud: str,
+    cloud_tools: List[str],
+    exp_index: int,
+    tailor_to_jd: bool,
+    strategy: TailoringStrategy,
+) -> List[str]:
+    transfer_tools = _transferable_platform_tools(jd, strategy)
     if tailor_to_jd:
         base = dedupe_keep_order(
             [cloud]
+            + transfer_tools
             + jd.data_tools
             + jd.databases
             + jd.orchestration_tools
@@ -210,35 +268,64 @@ def _generate_environment(exp: Experience, jd: JobAnalysis, cloud: str, cloud_to
         )
     else:
         jd_subset = _jd_tool_subset_for_older_experience(jd, exp.client_name, exp_index)
-        base = dedupe_keep_order([cloud] + jd_subset + cloud_tools + exp.environment + BASELINE_DATA_STACK)
-    complexity = 24
+        base = dedupe_keep_order([cloud] + transfer_tools[:8] + jd_subset + cloud_tools + exp.environment + BASELINE_DATA_STACK)
+    complexity = 40
     return filter_timeline_safe(base[:complexity], exp.dates)
 
 
-def _resolve_experience_domain(exp_domain: str, job_domain: str) -> str:
+def _resolve_experience_domain(exp_domain: str, job_domain: str, strategy: TailoringStrategy) -> str:
+    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT:
+        return exp_domain or "Enterprise Data Engineering"
     if is_enterprise_domain(exp_domain) and not is_enterprise_domain(job_domain):
         return job_domain
     return exp_domain or job_domain
 
 
-def _terms_for_experience_domain(exp_domain: str, jd: JobAnalysis, job_domain: str, tailor_to_jd: bool) -> List[str]:
+def _terms_for_experience_domain(
+    exp_domain: str,
+    jd: JobAnalysis,
+    job_domain: str,
+    tailor_to_jd: bool,
+    strategy: TailoringStrategy,
+) -> List[str]:
     terms = keywords_for_domain(exp_domain)
+    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT:
+        return dedupe_keep_order(terms)
     if tailor_to_jd and same_domain(exp_domain, job_domain):
         terms = jd.domain_keywords + terms
     return dedupe_keep_order(terms)
 
 
-def _tools_for_experience(exp: Experience, jd: JobAnalysis, tailor_to_jd: bool, exp_index: int) -> List[str]:
+def _tools_for_experience(exp: Experience, jd: JobAnalysis, tailor_to_jd: bool, exp_index: int, strategy: TailoringStrategy) -> List[str]:
+    transfer_tools = _transferable_platform_tools(jd, strategy)
     if tailor_to_jd:
         return dedupe_keep_order(
-            jd.data_tools
+            transfer_tools
+            + jd.data_tools
             + jd.etl_tools
             + jd.databases
             + jd.streaming_tools
             + jd.orchestration_tools
             + ["Python", "SQL", "Spark"]
         )
-    return dedupe_keep_order(_jd_tool_subset_for_older_experience(jd, exp.client_name, exp_index) + exp.environment + BASELINE_DATA_STACK)
+    return dedupe_keep_order(transfer_tools[:8] + _jd_tool_subset_for_older_experience(jd, exp.client_name, exp_index) + exp.environment + BASELINE_DATA_STACK)
+
+
+def _transferable_platform_tools(jd: JobAnalysis, strategy: TailoringStrategy) -> List[str]:
+    if strategy.name != ADJACENT_PLATFORM_ALIGNMENT:
+        return []
+    return filter_blocked_claim_terms(
+        dedupe_keep_order(
+            strategy.adjacent_terms
+            + jd.streaming_tools
+            + jd.orchestration_tools
+            + jd.databases
+            + jd.required_skills
+            + jd.preferred_skills
+            + ["Kafka", "Flink", "Kubernetes", "OpenShift", "Helm", "Java", "Spring Boot", "Prometheus", "Grafana", "OpenTelemetry", "Jaeger"]
+        ),
+        strategy,
+    )
 
 
 def _jd_tool_subset_for_older_experience(jd: JobAnalysis, client_name: str, exp_index: int) -> List[str]:
@@ -258,17 +345,46 @@ def _jd_tool_subset_for_older_experience(jd: JobAnalysis, client_name: str, exp_
 
 
 def _ensure_tool_mentions(text: str, tools: List[str]) -> str:
-    unique_tools = dedupe_keep_order(tool for tool in tools if tool)
+    unique_tools = dedupe_keep_order(tool for tool in tools if tool and is_known_technology(tool))
     if not unique_tools:
         return text
-    lower = text.lower()
-    present = [tool for tool in unique_tools if tool.lower() in lower]
-    missing = [tool for tool in unique_tools if tool.lower() not in lower]
-    needed = max(0, min(4, len(unique_tools)) - len(present))
+    present = extract_known_technologies(text, unique_tools)
+    missing = [tool for tool in unique_tools if tool.lower() not in {item.lower() for item in present}]
+    needed = max(0, BULLET_MIN_TECH_TERMS - len(present))
     if needed == 0 or not missing:
         return text
-    additions = missing[:needed]
-    return text.rstrip(".") + f", with {', '.join(additions)} supporting validation, monitoring, and operational handoff."
+    additions = missing[: min(needed, max(0, BULLET_MAX_TECH_TERMS - len(present)))]
+    if not additions:
+        return text
+    return text.rstrip(".") + f", with {', '.join(additions)} supporting validation."
+
+
+def _fit_responsibility_word_range(text: str, phrase_offset: int = 0) -> str:
+    sentence = text.strip().rstrip(".")
+    phrase_index = phrase_offset
+    while len(sentence.split()) < BULLET_MIN_WORDS:
+        phrase = BULLET_LENGTHENING_PHRASES[phrase_index % len(BULLET_LENGTHENING_PHRASES)]
+        sentence = f"{sentence}, {phrase}"
+        phrase_index += 1
+
+    tokens = sentence.split()
+    if len(tokens) > BULLET_MAX_WORDS:
+        tokens = tokens[:BULLET_MAX_WORDS]
+    return " ".join(tokens).rstrip(",;") + "."
+
+
+def _patterns_for_strategy(domain: str, strategy: TailoringStrategy) -> List[str]:
+    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
+        return [
+            "{verb} high-volume event ingestion for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving throughput and recovery for {stakeholder} teams.",
+            "{verb} distributed streaming workflows with {tool1}, {tool2}, and {tool3}, tuning partition strategy, retry handling, and back-pressure controls for operational workloads.",
+            "{verb} platform services around {data_asset} using {tool1} and {tool2}, improving async processing, file movement, and downstream handoff for {stakeholder} users.",
+            "{verb} observability and incident workflows across {tool1}, {tool2}, and {tool3}, strengthening SLO tracking, alert triage, and root-cause analysis.",
+            "{verb} containerized deployment patterns using {tool1}, {tool2}, and {tool3}, supporting repeatable releases, capacity reviews, and production support handoffs.",
+            "{verb} file ingestion and distribution paths with {tool1}, {tool2}, and SQL, improving partition pruning, validation checks, and controlled data delivery.",
+            "{verb} batch and streaming reliability patterns with {tool1}, {tool2}, and {tool3}, helping teams operate fresher event data with safer rollback options.",
+        ]
+    return _patterns_for_domain(domain)
 
 
 def _patterns_for_domain(domain: str) -> List[str]:
@@ -339,6 +455,19 @@ def _focus_for_experience(domain: str, client_name: str, exp_index: int) -> List
     return focus[offset:] + focus[:offset]
 
 
+def _focus_for_strategy(domain: str, client_name: str, exp_index: int, strategy: TailoringStrategy) -> List[Dict[str, str]]:
+    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
+        focus = [
+            {"focus": "streaming ingestion", "data_asset": "operational event streams", "stakeholder": "platform operations", "control": "schema validation", "outcome": "processing reliability"},
+            {"focus": "platform reliability", "data_asset": "distributed processing jobs", "stakeholder": "SRE and application", "control": "SLO monitoring", "outcome": "incident response speed"},
+            {"focus": "file distribution", "data_asset": "SFTP and object-storage feeds", "stakeholder": "downstream integration", "control": "reconciliation", "outcome": "delivery traceability"},
+            {"focus": "service orchestration", "data_asset": "containerized pipeline services", "stakeholder": "release management", "control": "deployment validation", "outcome": "release stability"},
+        ]
+        offset = exp_index % len(focus)
+        return focus[offset:] + focus[:offset]
+    return _focus_for_experience(domain, client_name, exp_index)
+
+
 def _focus_library(domain: str) -> List[Dict[str, str]]:
     if same_domain(domain, "Healthcare"):
         return [
@@ -387,7 +516,13 @@ def _stable_offset(client_name: str, exp_index: int) -> int:
     return sum(ord(char) for char in client_name.lower()) + (exp_index * 7)
 
 
-def _apply_alignment_repair(resume: TailoredResume, jd: JobAnalysis, cloud_by_client: Dict[str, str], alignment_pass: int) -> None:
+def _apply_alignment_repair(
+    resume: TailoredResume,
+    jd: JobAnalysis,
+    cloud_by_client: Dict[str, str],
+    alignment_pass: int,
+    strategy: TailoringStrategy,
+) -> None:
     text = render_resume_text(resume)
     ats = score_resume(resume, text, jd, cloud_by_client.values())
     gaps = ats.get("priority_gaps", {})
@@ -398,8 +533,9 @@ def _apply_alignment_repair(resume: TailoredResume, jd: JobAnalysis, cloud_by_cl
 
     repair_limit = 6 if alignment_pass == 1 else 12
     tool_terms = missing_tools[:repair_limit]
-    domain_terms = missing_domains[:repair_limit]
-    responsibility_terms = missing_responsibilities[: max(3, repair_limit // 2)]
+    source_text = render_resume_text(resume)
+    domain_terms = filter_blocked_claim_terms(missing_domains[:repair_limit], strategy, source_text)
+    responsibility_terms = filter_blocked_claim_terms(missing_responsibilities[: max(3, repair_limit // 2)], strategy, source_text)
     cloud_terms = missing_clouds[:repair_limit]
 
     _add_repair_terms_to_skills(resume, tool_terms, domain_terms, responsibility_terms)

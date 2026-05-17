@@ -231,9 +231,14 @@ def _results_panel() -> None:
     score_cols[1].caption(ats.get("score_breakdown", {}).get("cloud", ""))
     score_cols[2].metric("Domain alignment", f"{ats['domain_alignment_score']}%")
     score_cols[2].caption(ats.get("score_breakdown", {}).get("domain", ""))
+    if ats.get("domain_gap_warning"):
+        st.warning(ats["domain_gap_warning"])
 
     if quality["passed"]:
-        st.success(f"Resume passed the JD alignment gate after {attempts} attempt(s). Downloads are enabled.")
+        if quality.get("adjacent_platform_fit"):
+            st.success(f"Resume passed the adjacent platform fit gate after {attempts} attempt(s). Downloads are enabled with the domain-gap warning above.")
+        else:
+            st.success(f"Resume passed the JD alignment gate after {attempts} attempt(s). Downloads are enabled.")
     else:
         st.error(f"Resume did not pass the JD alignment gate after {attempts} attempt(s). Downloads are disabled until gaps are fixed.")
         for failure in quality.get("failures", []):

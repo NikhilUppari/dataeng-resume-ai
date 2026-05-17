@@ -3,3 +3,12 @@ Preserve client names, dates, experience order, and broad resume structure.
 Tailor responsibilities to the selected cloud for each client, the job
 description, the domain, and realistic enterprise data engineering work.
 Avoid architect, led, headed, and managed-team language.
+Before injecting domain language, compare the JD domain with the candidate's
+actual client domains. If the JD domain is not represented in the resume, use
+truthful adjacent-fit positioning instead of claiming direct domain ownership.
+For telecom mediation JDs without telecom client history, emphasize transferable
+streaming, distributed systems, platform engineering, observability, and SRE
+work. Do not invent ASN.1 decoding, CDR/UDR processing, OSS/BSS mediation,
+3GPP flows, telecom charging systems, SS7/SIGTRAN, or Nokia/Ericsson/Samsung/
+Cisco/Ciena project experience unless those terms are already supported by the
+source resume.

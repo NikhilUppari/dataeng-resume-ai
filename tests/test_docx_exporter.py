@@ -4,6 +4,8 @@ import unittest
 from io import BytesIO
 
 from docx import Document
+from docx.oxml.ns import qn
+from docx.shared import Pt
 
 from utils.docx_exporter import build_docx
 from utils.schema import Experience, TailoredResume
@@ -13,11 +15,13 @@ class DocxExporterBoldFormattingTests(unittest.TestCase):
     def test_technical_skill_values_are_plain_while_category_labels_are_bold(self) -> None:
         document = _build_sample_document()
 
-        skill_paragraphs = _section_paragraphs(document, "TECHNICAL SKILLS", "PROFESSIONAL EXPERIENCE")
+        skill_paragraphs = _section_paragraphs(document, "Technical Skills", "Professional Experience")
         self.assertGreaterEqual(len(skill_paragraphs), 2)
 
         for paragraph in skill_paragraphs:
-            self.assertEqual(paragraph.style.name, "List Bullet")
+            self.assertEqual(paragraph.style.name, "Normal")
+            self.assertEqual(paragraph.paragraph_format.space_after, Pt(0))
+            self.assertEqual(paragraph.paragraph_format.line_spacing, 1.0)
             self.assertTrue(paragraph.runs[0].bold)
             self.assertTrue(paragraph.runs[0].text.endswith(": "))
 
@@ -53,6 +57,52 @@ class DocxExporterBoldFormattingTests(unittest.TestCase):
         self.assertNotIn("35%", bold_text)
         self.assertNotIn("order pipelines", bold_text)
         self.assertNotIn("data quality", bold_text)
+
+    def test_document_uses_calibri_body_text_and_bordered_title_case_headings(self) -> None:
+        document = _build_sample_document()
+
+        self.assertEqual(document.styles["Normal"].font.name, "Calibri")
+        self.assertEqual(document.styles["Normal"].font.size, Pt(10))
+        self.assertEqual(document.styles["List Bullet"].font.name, "Calibri")
+        self.assertEqual(document.styles["List Bullet"].font.size, Pt(10))
+
+        headings = [
+            _paragraph_containing(document, "Professional Summary"),
+            _paragraph_containing(document, "Technical Skills"),
+            _paragraph_containing(document, "Professional Experience"),
+        ]
+        for heading in headings:
+            self.assertEqual(heading.text, heading.text.title())
+            self.assertTrue(heading.runs[0].bold)
+            self.assertEqual(heading.runs[0].font.name, "Calibri")
+            self.assertEqual(heading.runs[0].font.size, Pt(12))
+            self.assertEqual(heading.paragraph_format.space_before, Pt(7))
+            self.assertEqual(heading.paragraph_format.space_after, Pt(1))
+            self.assertTrue(_has_bottom_border(heading))
+
+    def test_experience_metadata_uses_one_compact_client_header(self) -> None:
+        document = _build_sample_document()
+
+        client_header = _paragraph_containing(
+            document,
+            "Client: Example Client | Senior Data Engineer | 2023 - Present | Healthcare",
+        )
+
+        self.assertEqual(client_header.style.name, "Normal")
+        self.assertEqual(client_header.paragraph_format.space_after, Pt(0))
+        self.assertEqual(client_header.paragraph_format.line_spacing, 1.0)
+        self.assertEqual(client_header.runs[0].text, "Client: Example Client")
+        self.assertTrue(client_header.runs[0].bold)
+        self.assertTrue(all(run.font.size == Pt(10) for run in client_header.runs if run.text))
+
+    def test_bullets_use_tight_single_spacing(self) -> None:
+        document = _build_sample_document()
+
+        bullet = _paragraph_containing(document, "patient analytics with 35% faster order pipelines")
+
+        self.assertEqual(bullet.style.name, "List Bullet")
+        self.assertEqual(bullet.paragraph_format.space_after, Pt(0))
+        self.assertEqual(bullet.paragraph_format.line_spacing, 1.0)
 
 
 def _build_sample_document():
@@ -104,6 +154,16 @@ def _paragraph_containing(document, text: str):
 
 def _bold_text(paragraph) -> str:
     return "".join(run.text for run in paragraph.runs if run.bold is True)
+
+
+def _has_bottom_border(paragraph) -> bool:
+    p_pr = paragraph._p.pPr
+    if p_pr is None:
+        return False
+    p_bdr = p_pr.find(qn("w:pBdr"))
+    if p_bdr is None:
+        return False
+    return p_bdr.find(qn("w:bottom")) is not None
 
 
 if __name__ == "__main__":

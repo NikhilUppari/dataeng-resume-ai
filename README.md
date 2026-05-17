@@ -14,10 +14,11 @@ The app runs on your laptop with Streamlit and Ollama. It parses a DOCX or PDF r
 - Known client mapping for Oak Street Health, HCA Healthcare, Northern Trust, eBay, United Airlines, and MakeMyTrip
 - Timeline validation to avoid placing newer tools into older experience periods
 - Tailored professional summary, technical skills, responsibilities, and environment sections
+- Personal header/contact details preserved at the beginning of generated resumes
 - Format-controlled client responsibilities with target counts by experience order and compact 29-33 word bullets
 - ATS analysis panel with match score, matched keywords, missing keywords, missing tools, cloud score, domain score, and suggestions
-- ATS-friendly DOCX export through `python-docx` with Calibri 10pt body text, Title Case section headings, thin heading borders, and compact technical skills lines
-- PDF export through `docx2pdf` on Windows or `pypandoc` when configured
+- ATS-friendly DOCX export through `python-docx` with Calibri 10pt body text, 12pt Camel Case section headings, thin heading borders, and compact capped technical skills lines
+- PDF export through `docx2pdf` on Windows or `pypandoc` when configured, with a built-in fallback PDF writer
 - Optional local Ollama enrichment with `llama3.1`, `qwen2.5`, `mistral`, or `deepseek-r1`
 - Deterministic fallback generation when Ollama is not running
 
@@ -110,11 +111,14 @@ The app preserves client names, dates, experience order, and section intent. DOC
 Current DOCX formatting rules:
 
 - Body text uses Calibri 10pt.
-- Section headings use Title Case, Calibri 12pt, bold text, and a thin bottom border.
+- Section headings use Camel Case, Calibri 12pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
+- Client names and subheadings use Calibri 10pt.
+- Education stays at the bottom; the Education heading uses Calibri 14pt and education details use Calibri 10pt.
 - Technical skills render as compact category lines, such as `Cloud Platforms: AWS, Azure, S3, Glue, Redshift`.
-- Client experience headers render on one compact line: `Client: Client Name | Role | Dates | Domain`.
+- Technical skills are capped by category to avoid keyword stuffing.
+- Client experience headers render on one compact line: `Client Name | Role | Dates | Domain`.
 - Responsibility bullets use tight spacing and bold known technical tools that appear in the bullet.
-- Client responsibility counts target 28 points for the current client, then 25, 23, 20, and 18 for older clients.
+- Client responsibility counts target 27 points for the current client, then 25, 23, 20, and 10 for older clients.
 
 Exact visual preservation of complex original DOCX formatting can be improved by adding template-specific replacement rules in `templates/`.
 

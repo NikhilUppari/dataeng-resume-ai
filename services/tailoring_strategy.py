@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from typing import Iterable, List
 
 from parsers.jd_analyzer import JobAnalysis
@@ -80,7 +81,7 @@ class TailoringStrategy:
 def determine_tailoring_strategy(profile: ResumeProfile, jd: JobAnalysis, job_domain: str) -> TailoringStrategy:
     resume_domains = _resume_domains(profile)
     matched_domains = [domain for domain in resume_domains if same_domain(domain, job_domain)]
-    if matched_domains or not resume_domains or job_domain == ENTERPRISE_DOMAIN:
+    if matched_domains or job_domain == ENTERPRISE_DOMAIN:
         return TailoringStrategy(
             name=DIRECT_DOMAIN_ALIGNMENT,
             job_domain=job_domain,
@@ -101,8 +102,25 @@ def determine_tailoring_strategy(profile: ResumeProfile, jd: JobAnalysis, job_do
 
 
 def filter_blocked_claim_terms(terms: Iterable[str], strategy: TailoringStrategy, source_text: str = "") -> List[str]:
-    blocked = {term.lower() for term in strategy.blocked_claim_terms if term.lower() not in source_text.lower()}
-    return dedupe_keep_order(term for term in terms if term.lower() not in blocked)
+    return dedupe_keep_order(
+        term
+        for term in terms
+        if not _contains_unsupported_claim(str(term), strategy.blocked_claim_terms, source_text)
+    )
+
+
+def _contains_unsupported_claim(term: str, blocked_claim_terms: Iterable[str], source_text: str) -> bool:
+    for blocked in blocked_claim_terms:
+        if _contains_claim(term, blocked) and not _contains_claim(source_text, blocked):
+            return True
+    return False
+
+
+def _contains_claim(text: str, claim: str) -> bool:
+    if not text or not claim:
+        return False
+    pattern = rf"(?<![A-Za-z0-9]){re.escape(claim)}(?![A-Za-z0-9])"
+    return re.search(pattern, text, flags=re.IGNORECASE) is not None
 
 
 def _resume_domains(profile: ResumeProfile) -> List[str]:

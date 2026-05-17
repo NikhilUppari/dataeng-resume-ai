@@ -13,9 +13,9 @@ from utils.technology_terms import extract_known_technologies
 class ResumeTailoringDomainTests(unittest.TestCase):
     def test_professional_summary_changes_for_different_jds(self) -> None:
         profile = ResumeProfile(
-            raw_text="Built data platforms.",
+            raw_text="Built healthcare data platforms.",
             experiences=[
-                Experience(client_name="Confidential Client", dates="Jan 2024 - Present", domain="Enterprise Data Engineering", environment=["Python", "SQL"])
+                Experience(client_name="Confidential Client", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"])
             ],
         )
         healthcare_jd = JobAnalysis(
@@ -104,6 +104,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             ("United Airlines", "Aviation"),
             ("eBay", "Retail / E-commerce"),
             ("MakeMyTrip", "Travel / Online Travel Platform"),
+            ("Confidential Client", "Enterprise Data Engineering"),
         ]
         profile = ResumeProfile(
             raw_text="Multiple client data engineering history.",
@@ -123,9 +124,94 @@ class ResumeTailoringDomainTests(unittest.TestCase):
 
         tailored = tailor_resume(profile, jd, {client: "AWS" for client, _ in clients})
 
-        self.assertEqual([len(exp.responsibilities) for exp in tailored.experiences], [28, 25, 23, 20, 18])
+        self.assertEqual([len(exp.responsibilities) for exp in tailored.experiences], [27, 25, 23, 20, 10, 10])
 
-    def test_generic_experience_uses_detected_jd_domain(self) -> None:
+    def test_rendered_resume_text_uses_docx_aligned_section_and_client_format(self) -> None:
+        resume = tailor_resume(
+            ResumeProfile(
+                raw_text="Built healthcare data platforms.",
+                personal_details=["Nikhil Uppari", "nikhil@example.com | 555-123-4567"],
+                experiences=[
+                    Experience(
+                        client_name="Oak Street Health",
+                        title="Senior Data Engineer",
+                        dates="Jan 2024 - Present",
+                        domain="Healthcare",
+                        environment=["Python", "SQL"],
+                    )
+                ],
+                certifications=["AWS Certified Data Engineer"],
+                education="M.S. Data Engineering",
+            ),
+            JobAnalysis(
+                data_tools=["Databricks", "Spark"],
+                databases=["Snowflake"],
+                domain_keywords=["HIPAA", "patient analytics"],
+                seniority_level="Senior",
+            ),
+            {"Oak Street Health": "AWS"},
+        )
+
+        rendered = render_resume_text(resume)
+
+        self.assertTrue(rendered.startswith("Nikhil Uppari\nnikhil@example.com | 555-123-4567"))
+        self.assertIn("Professional Summary", rendered)
+        self.assertIn("Technical Skills", rendered)
+        self.assertIn("Professional Experience", rendered)
+        self.assertIn("Certifications", rendered)
+        self.assertIn("Education", rendered)
+        self.assertIn(
+            "Oak Street Health | Senior Data Engineer | Jan 2024 - Present | Healthcare",
+            rendered,
+        )
+        self.assertNotIn("Client: Oak Street Health", rendered)
+        self.assertNotIn("PROFESSIONAL EXPERIENCE", rendered)
+        self.assertNotIn("\nSenior Data Engineer | Jan 2024 - Present\n", rendered)
+
+    def test_professional_summary_has_twelve_points(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Built healthcare data platforms.",
+            experiences=[
+                Experience(client_name="Oak Street Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"])
+            ],
+        )
+        jd = JobAnalysis(
+            data_tools=["Databricks", "Spark"],
+            databases=["Snowflake"],
+            streaming_tools=["Kafka"],
+            domain_keywords=["HIPAA", "patient analytics"],
+            seniority_level="Senior",
+        )
+
+        tailored = tailor_resume(profile, jd, {"Oak Street Health": "AWS"})
+
+        self.assertEqual(len(tailored.summary), 12)
+
+    def test_recent_client_gets_timeline_safe_ai_enablement(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Built healthcare data platforms.",
+            experiences=[
+                Experience(client_name="Oak Street Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"]),
+                Experience(client_name="HCA Healthcare", dates="Jan 2020 - Dec 2020", domain="Healthcare", environment=["Python", "SQL"]),
+            ],
+        )
+        jd = JobAnalysis(
+            data_tools=["Databricks", "Spark"],
+            databases=["Snowflake"],
+            streaming_tools=["Kafka"],
+            domain_keywords=["HIPAA", "patient analytics"],
+            seniority_level="Senior",
+        )
+
+        tailored = tailor_resume(profile, jd, {"Oak Street Health": "AWS", "HCA Healthcare": "AWS"})
+        recent_text = "\n".join(tailored.experiences[0].responsibilities) + "\n" + ", ".join(tailored.experiences[0].environment)
+        older_text = "\n".join(tailored.experiences[1].responsibilities) + "\n" + ", ".join(tailored.experiences[1].environment)
+
+        self.assertIn("SageMaker", recent_text)
+        self.assertIn("Bedrock", recent_text)
+        self.assertNotIn("Bedrock", older_text)
+
+    def test_generic_experience_does_not_claim_unmatched_jd_domain(self) -> None:
         profile = ResumeProfile(
             raw_text="Built enterprise data platforms.",
             experiences=[
@@ -149,12 +235,10 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         tailored = tailor_resume(profile, jd, {"Confidential Client": "Azure"})
         rendered = render_resume_text(tailored)
 
-        self.assertEqual(
-            tailored.experiences[0].domain,
-            "Financial Services / Banking / Wealth Management / Asset Servicing",
-        )
-        for expected in ["AML", "KYC", "fraud detection", "risk analytics"]:
-            self.assertIn(expected, rendered)
+        self.assertEqual(tailored.experiences[0].domain, "Enterprise Data Engineering")
+        self.assertEqual(tailored.ats_score["tailoring_strategy"], "adjacent_platform_alignment")
+        for unsupported_domain_claim in ["AML", "KYC", "fraud detection", "risk analytics"]:
+            self.assertNotIn(unsupported_domain_claim, rendered)
 
     def test_missing_jd_domain_terms_do_not_penalize_domain_alignment(self) -> None:
         jd = JobAnalysis(data_tools=["Spark"])
@@ -228,9 +312,9 @@ class ResumeTailoringDomainTests(unittest.TestCase):
 
     def test_alignment_repair_pass_adds_remaining_gap_terms(self) -> None:
         profile = ResumeProfile(
-            raw_text="Built data platforms.",
+            raw_text="Built healthcare data platforms.",
             experiences=[
-                Experience(client_name="Confidential Client", dates="Jan 2024 - Present", domain="Enterprise Data Engineering", environment=["Python", "SQL"])
+                Experience(client_name="Oak Street Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"])
             ],
         )
         jd = JobAnalysis(
@@ -243,7 +327,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             seniority_level="Senior",
         )
 
-        repaired = tailor_resume(profile, jd, {"Confidential Client": "AWS"}, alignment_pass=1)
+        repaired = tailor_resume(profile, jd, {"Oak Street Health": "AWS"}, alignment_pass=1)
         rendered = render_resume_text(repaired)
 
         for expected in ["Databricks", "Snowflake", "Kafka", "Airflow", "HIPAA", "claims data"]:
@@ -329,6 +413,32 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             self.assertNotIn(blocked, rendered)
         self.assertIn("streaming and platform engineering", " ".join(tailored.summary))
         self.assertIn("telecom-style operational event workloads", " ".join(tailored.summary))
+
+    def test_telecom_alignment_repair_does_not_inject_direct_mediation_claims(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Healthcare, finance, and retail data engineering background with Kafka platforms.",
+            experiences=[
+                Experience(client_name="CVS Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL", "Kafka"]),
+                Experience(client_name="Northern Trust", dates="Jan 2023 - Dec 2023", domain="Financial Services / Banking / Wealth Management / Asset Servicing", environment=["Spark", "Airflow"]),
+            ],
+        )
+        jd = JobAnalysis(
+            required_skills=["Java", "Spring Boot", "Spring Kafka", "Golang", "ASN.1", "CDR", "UDR", "OSS/BSS"],
+            databases=["Oracle"],
+            streaming_tools=["Kafka", "Flink"],
+            orchestration_tools=["Kubernetes", "OpenShift", "Helm"],
+            domain_keywords=["telecom", "telecom mediation", "ASN.1", "CDR", "UDR", "3GPP", "OSS/BSS"],
+            responsibilities=["Build telecom mediation systems for CDR and UDR processing using ASN.1 decoding."],
+            seniority_level="Senior",
+        )
+
+        repaired = tailor_resume(profile, jd, {"CVS Health": "AWS", "Northern Trust": "AWS"}, alignment_pass=1)
+        rendered = render_resume_text(repaired)
+
+        self.assertEqual(repaired.ats_score["tailoring_strategy"], "adjacent_platform_alignment")
+        for blocked in ["ASN.1", "CDR", "UDR", "OSS/BSS", "3GPP"]:
+            self.assertNotIn(blocked, rendered)
+        self.assertNotIn("Build telecom mediation systems", rendered)
 
 
 if __name__ == "__main__":

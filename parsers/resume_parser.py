@@ -21,6 +21,16 @@ SECTION_PATTERNS = {
     "certifications": r"(certifications?|licenses?)",
     "education": r"(education|academic)",
 }
+DATE_RANGE_PATTERN = (
+    r"(?i)(?:"
+    r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}"
+    r"|\d{1,2}[/-]\d{4}"
+    r"|(?:19|20)\d{2}"
+    r")\s*(?:-|–|—|to)\s*(?:present|current|now|"
+    r"(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{4}"
+    r"|\d{1,2}[/-]\d{4}"
+    r"|(?:19|20)\d{2})"
+)
 
 def extract_resume_text(uploaded_file) -> str:
     name = uploaded_file.name.lower()
@@ -58,6 +68,7 @@ def parse_resume_text(text: str) -> ResumeProfile:
     text = clean_text(text)
     sections = _split_sections(text)
     profile = ResumeProfile(raw_text=text, sections=sections)
+    profile.personal_details = _parse_personal_details(text)
     profile.professional_summary = sections.get("professional_summary", "")
     profile.technical_skills = _parse_skill_section(sections.get("technical_skills", ""))
     profile.experiences = _parse_experiences(sections.get("experience", text), text)
@@ -107,6 +118,32 @@ def _parse_skill_section(text: str) -> Dict[str, List[str]]:
     return {k: dedupe_keep_order(v) for k, v in skills.items() if v}
 
 
+def _parse_personal_details(text: str) -> List[str]:
+    lines = [line.strip(" |") for line in text.splitlines()]
+    header_lines: List[str] = []
+    for line in lines:
+        if not line:
+            continue
+        normalized = re.sub(r"[^a-zA-Z ]", "", line).strip().lower()
+        if any(re.fullmatch(pattern, normalized, flags=re.IGNORECASE) for pattern in SECTION_PATTERNS.values()):
+            break
+        if line.startswith(("-", "*", "â€¢")):
+            continue
+        header_lines.append(line)
+        if len(header_lines) >= 5:
+            break
+
+    if header_lines:
+        return dedupe_keep_order(header_lines)
+
+    contact_lines = []
+    for line in lines[:12]:
+        lower = line.lower()
+        if any(token in lower for token in ["@", "linkedin", "github", "phone", "email"]) or re.search(r"\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}", line):
+            contact_lines.append(line)
+    return dedupe_keep_order(contact_lines[:5])
+
+
 def _parse_experiences(text: str, full_text: str) -> List[Experience]:
     chunks = _experience_chunks(text)
     experiences: List[Experience] = []
@@ -146,7 +183,7 @@ def _experience_chunks(text: str) -> List[str]:
             chunks.append(text[start:end].strip())
         return chunks
 
-    date_matches = list(re.finditer(r"(?i)(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4}\s*[-to]+\s*(present|\d{4}|[a-z]+\.?\s+\d{4})", text))
+    date_matches = list(re.finditer(DATE_RANGE_PATTERN, text))
     if len(date_matches) >= 2:
         chunks = []
         for idx, match in enumerate(date_matches):
@@ -227,15 +264,17 @@ def _find_title(chunk: str) -> str:
 
 
 def _find_dates(chunk: str) -> str:
-    patterns = [
-        r"(?i)(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{4}\s*[-to]+\s*(present|\d{4}|[a-z]+\.?\s+\d{4})",
-        r"\b(20\d{2}|19\d{2})\s*[-to]+\s*(present|20\d{2}|19\d{2})\b",
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, chunk)
-        if match:
-            return match.group(0).strip()
+    match = re.search(DATE_RANGE_PATTERN, chunk)
+    if match:
+        return _normalize_date_range(match.group(0))
     return ""
+
+
+def _normalize_date_range(value: str) -> str:
+    normalized = re.sub(r"\s*(?:-|–|—|to)\s*", " - ", value.strip(), flags=re.IGNORECASE)
+    normalized = re.sub(r"\b(current|now)\b", "Present", normalized, flags=re.IGNORECASE)
+    normalized = re.sub(r"\bpresent\b", "Present", normalized, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", normalized)
 
 
 def _find_bullets(chunk: str) -> List[str]:

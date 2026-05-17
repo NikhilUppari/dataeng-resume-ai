@@ -8,7 +8,7 @@ from utils.text import dedupe_keep_order
 
 
 def earliest_year(dates: str) -> int:
-    years = [int(y) for y in re.findall(r"(19|20)\d{2}", dates or "")]
+    years = [int(y) for y in re.findall(r"(?:19|20)\d{2}", dates or "")]
     if not years:
         return 2024
     return min(years)

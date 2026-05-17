@@ -4,6 +4,36 @@ from parsers.resume_parser import parse_resume_text
 
 
 class ResumeParserTest(unittest.TestCase):
+    def test_personal_details_are_parsed_before_sections(self):
+        resume_text = """
+Nikhil Uppari
+nikhil@example.com | 555-123-4567 | linkedin.com/in/nikhil
+Dallas, TX
+
+PROFESSIONAL SUMMARY
+Senior data engineer.
+
+PROFESSIONAL EXPERIENCE
+CVS Health
+Senior Data Engineer | Jan 2024 - Present
+- Built healthcare data pipelines.
+
+EDUCATION
+M.S. Data Engineering
+"""
+
+        profile = parse_resume_text(resume_text)
+
+        self.assertEqual(
+            profile.personal_details,
+            [
+                "Nikhil Uppari",
+                "nikhil@example.com | 555-123-4567 | linkedin.com/in/nikhil",
+                "Dallas, TX",
+            ],
+        )
+        self.assertEqual(profile.education, "M.S. Data Engineering")
+
     def test_repeated_client_labels_do_not_create_fake_experiences(self):
         resume_text = """
 PROFESSIONAL EXPERIENCE
@@ -99,6 +129,23 @@ Master of Science
                 "United Airlines",
             ],
         )
+
+    def test_current_client_date_range_accepts_common_dash_and_current_formats(self):
+        resume_text = """
+PROFESSIONAL EXPERIENCE
+CVS Health
+Senior Data Engineer | Jan 2024 – Current
+- Built healthcare data pipelines.
+
+Northern Trust
+Data Engineer | 01/2023 - 12/2023
+- Built banking data pipelines.
+"""
+
+        profile = parse_resume_text(resume_text)
+
+        self.assertEqual(profile.experiences[0].dates, "Jan 2024 - Present")
+        self.assertEqual(profile.experiences[1].dates, "01/2023 - 12/2023")
 
 
 if __name__ == "__main__":

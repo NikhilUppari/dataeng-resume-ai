@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 from typing import Callable, Dict, List
 
@@ -49,6 +50,8 @@ def main() -> None:
             st.session_state["jd_text"] = (APP_DIR / "sample_data" / "sample_job_description.txt").read_text(encoding="utf-8")
 
     left, right = st.columns([0.95, 1.05], gap="large")
+    timer_placeholder = right.empty()
+    _render_generation_timer(timer_placeholder)
 
     with left:
         uploaded_file = st.file_uploader("Resume upload", type=["docx", "pdf", "txt"])
@@ -67,8 +70,15 @@ def main() -> None:
 
     if generate and profile:
         _reset_build_log()
+        timer_start = time.monotonic()
+        st.session_state["generation_timer_running"] = True
+        st.session_state["generation_timer_elapsed"] = 0.0
+        _render_generation_timer(timer_placeholder, running=True, elapsed_seconds=0.0)
 
         def log_status(message: str) -> None:
+            elapsed = time.monotonic() - timer_start
+            st.session_state["generation_timer_elapsed"] = elapsed
+            _render_generation_timer(timer_placeholder, running=True, elapsed_seconds=elapsed)
             _append_build_log(message)
             _render_build_log(build_log_placeholder, st.session_state["build_log"])
 
@@ -84,16 +94,20 @@ def main() -> None:
             if quality["passed"]:
                 log_status("Building DOCX now. The resume has earned paperwork privileges.")
                 st.session_state["docx_bytes"] = build_docx(tailored)
-                log_status("Trying PDF export too. This part depends on your local converter behaving itself.")
+                log_status("Building PDF export too. Local converters get first try, then the built-in fallback takes over.")
                 st.session_state["pdf_bytes"] = build_pdf(tailored)
                 if st.session_state["pdf_bytes"] is None:
-                    log_status("PDF converter said no today. DOCX is still ready.")
+                    log_status("PDF export did not finish cleanly. DOCX is still ready.")
                 else:
                     log_status("PDF is ready too. Very civilized.")
             else:
                 st.session_state.pop("docx_bytes", None)
                 st.session_state.pop("pdf_bytes", None)
                 log_status("Downloads are staying locked because the score still needs work.")
+            elapsed = time.monotonic() - timer_start
+            st.session_state["generation_timer_running"] = False
+            st.session_state["generation_timer_elapsed"] = elapsed
+            _render_generation_timer(timer_placeholder, running=False, elapsed_seconds=elapsed)
 
     with right:
         _results_panel()
@@ -247,6 +261,12 @@ def _results_panel() -> None:
     _show_build_log()
 
     st.subheader("Downloads")
+    pdf_bytes = st.session_state.get("pdf_bytes")
+    if quality["passed"] and pdf_bytes is None:
+        with st.spinner("Preparing PDF export..."):
+            pdf_bytes = build_pdf(tailored)
+            st.session_state["pdf_bytes"] = pdf_bytes
+
     download_cols = st.columns(2)
     download_cols[0].download_button(
         "Download DOCX",
@@ -256,7 +276,6 @@ def _results_panel() -> None:
         disabled=not quality["passed"],
         use_container_width=True,
     )
-    pdf_bytes = st.session_state.get("pdf_bytes")
     download_cols[1].download_button(
         "Download PDF",
         data=pdf_bytes or b"",
@@ -266,7 +285,7 @@ def _results_panel() -> None:
         use_container_width=True,
     )
     if quality["passed"] and pdf_bytes is None:
-        st.caption("PDF export needs Microsoft Word/docx2pdf or a working Pandoc PDF toolchain.")
+        st.caption("PDF export could not finish. DOCX is still available.")
 
     st.subheader("Resume preview")
     st.text_area("Generated resume", st.session_state["resume_text"], height=520)
@@ -331,6 +350,22 @@ def _show_build_log() -> None:
     with st.expander("Resume builder log", expanded=True):
         for message in messages:
             st.write(f"- {message}")
+
+
+def _render_generation_timer(target, *, running: bool | None = None, elapsed_seconds: float | None = None) -> None:
+    if running is None:
+        running = bool(st.session_state.get("generation_timer_running", False))
+    if elapsed_seconds is None:
+        elapsed_seconds = float(st.session_state.get("generation_timer_elapsed", 0.0))
+    label = "Generating" if running else "Last build"
+    with target.container():
+        st.metric(label, _format_elapsed(elapsed_seconds))
+
+
+def _format_elapsed(seconds: float) -> str:
+    total = max(0, int(seconds))
+    minutes, remaining = divmod(total, 60)
+    return f"{minutes:02d}:{remaining:02d}"
 
 
 def _log(log_status: Callable[[str], None] | None, message: str) -> None:

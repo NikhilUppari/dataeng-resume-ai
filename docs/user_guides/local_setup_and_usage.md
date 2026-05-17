@@ -9,7 +9,7 @@ Before running this project locally, make sure your computer has:
 - PowerShell or another terminal
 - A local clone of this repository
 - Internet access for the first dependency install
-- Microsoft Word on Windows if you want the best DOCX-to-PDF export through `docx2pdf`
+- Microsoft Word on Windows if you want the best DOCX-to-PDF export through `docx2pdf`; otherwise the app uses a built-in PDF fallback
 - Optional: Ollama for local AI enrichment
 
 Python packages are installed from:
@@ -56,10 +56,14 @@ Generated output formats:
 The DOCX output is generated with a compact ATS-friendly layout:
 
 - Body text uses Calibri 10pt.
-- Section headings use Title Case, Calibri 12pt, bold text, and a thin bottom border.
+- Section headings use Camel Case, Calibri 12pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
+- Client names and subheadings use Calibri 10pt.
+- Personal header/contact details are preserved at the beginning of the generated resume.
+- Education remains at the bottom; the Education heading uses Calibri 14pt and education details use Calibri 10pt.
 - Technical skills are written as compact category lines, such as `Cloud Platforms: AWS, Azure, S3, Glue, Redshift`.
-- Each client header is kept on one line when data is available: `Client: Client Name | Role | Dates | Domain`.
-- Client responsibility counts target 28 points for the current client, then 25, 23, 20, and 18 for older clients.
+- Technical skills are capped by category to keep the section concise and avoid keyword stuffing.
+- Each client header is kept on one line when data is available: `Client Name | Role | Dates | Domain`.
+- Client responsibility counts target 27 points for the current client, then 25, 23, 20, and 10 for older clients.
 - Responsibility bullets target 29-33 words and bold known technical tools, skills, and platforms when they appear in the bullet.
 - Bullets use tight spacing to keep long experience sections readable without adding unnecessary pages.
 
@@ -164,7 +168,7 @@ http://localhost:8501
 7. Review the ATS scores, matched keywords, missing keywords, missing tools, and suggestions.
 8. Review the generated resume preview.
 9. Download the DOCX output.
-10. Download the PDF output if PDF export is available on your machine.
+10. Download the PDF output.
 
 ## Sample Data
 
@@ -270,7 +274,7 @@ If Ollama is not detected, confirm the Ollama app or service is running:
 ollama list
 ```
 
-If PDF export is disabled, download the DOCX output instead. PDF export depends on local tools such as Microsoft Word with `docx2pdf` on Windows or a working Pandoc PDF toolchain.
+If Word/Pandoc conversion is unavailable, the app uses a built-in fallback PDF export. Use DOCX when you need the highest-fidelity editable version.
 
 If resume parsing looks incomplete, try uploading a cleaner DOCX or TXT version of the resume. Highly formatted PDFs can be harder to parse reliably.
 

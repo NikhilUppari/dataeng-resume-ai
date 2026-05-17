@@ -123,17 +123,24 @@ def _cloud_controls(profile: ResumeProfile) -> Dict[str, str]:
 
 
 def _experience_table(profile: ResumeProfile, cloud_by_client: Dict[str, str]) -> None:
-    rows = [
-        {
-            "Client": exp.client_name,
-            "Title": exp.title,
-            "Dates": exp.dates,
-            "Domain": exp.domain,
-            "Cloud": cloud_by_client.get(exp.client_name, "AWS"),
-        }
-        for exp in profile.experiences
-    ]
-    st.dataframe(rows, hide_index=True, use_container_width=True)
+    rows = ["| Client | Title | Dates | Domain | Cloud |", "| --- | --- | --- | --- | --- |"]
+    for exp in profile.experiences:
+        rows.append(
+            " | ".join(
+                [
+                    f"| {_markdown_table_cell(exp.client_name)}",
+                    _markdown_table_cell(exp.title),
+                    _markdown_table_cell(exp.dates),
+                    _markdown_table_cell(exp.domain),
+                    f"{_markdown_table_cell(cloud_by_client.get(exp.client_name, 'AWS'))} |",
+                ]
+            )
+        )
+    st.markdown("\n".join(rows))
+
+
+def _markdown_table_cell(value: str) -> str:
+    return str(value or "-").replace("|", "\\|").replace("\n", " ").strip()
 
 
 def _analyze_jd(

@@ -19,6 +19,7 @@ class Experience:
 @dataclass
 class ResumeProfile:
     raw_text: str
+    personal_details: List[str] = field(default_factory=list)
     professional_summary: str = ""
     technical_skills: Dict[str, List[str]] = field(default_factory=dict)
     experiences: List[Experience] = field(default_factory=list)
@@ -53,3 +54,4 @@ class TailoredResume:
     certifications: List[str]
     education: str
     ats_score: Dict[str, object]
+    personal_details: List[str] = field(default_factory=list)

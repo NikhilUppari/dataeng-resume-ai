@@ -44,7 +44,7 @@ class TechnicalSkillsGenerationTests(unittest.TestCase):
         for expected in ["AWS Glue", "Databricks", "Spark", "Snowflake", "Kafka", "Airflow", "Terraform", "Docker", "Power BI"]:
             self.assertIn(expected, flattened)
 
-        for cloud_service in ["Glue", "Lake Formation", "Azure Data Factory", "ADLS"]:
+        for cloud_service in ["Glue", "Lake Formation", "Azure Data Factory"]:
             self.assertIn(cloud_service, flattened)
 
         self.assertIn("Unity Catalog", skills["Data Governance & Security"])
@@ -64,6 +64,48 @@ class TechnicalSkillsGenerationTests(unittest.TestCase):
         self.assertIn("Azure Data Factory", skills["Cloud Platforms"])
         self.assertIn("Composer", skills["Orchestration"])
         self.assertIn("Power BI", skills["BI & Visualization"])
+
+    def test_generated_skill_categories_stay_compact(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Built platforms with AWS, Azure, GCP, Spark, Kafka, Airflow, Docker, Kubernetes, Terraform, Power BI.",
+            technical_skills={
+                "Existing": [
+                    "Spark",
+                    "PySpark",
+                    "Databricks",
+                    "Hadoop",
+                    "Hive",
+                    "dbt",
+                    "Delta Lake",
+                    "Iceberg",
+                    "Kafka",
+                    "Flink",
+                    "Airflow",
+                    "Terraform",
+                    "Docker",
+                    "Kubernetes",
+                    "Power BI",
+                ]
+            },
+        )
+        jd = JobAnalysis(
+            cloud_platforms=["AWS", "Azure", "GCP"],
+            data_tools=["Spark", "PySpark", "Databricks", "Hadoop", "Hive", "dbt", "Delta Lake", "Iceberg"],
+            databases=["Snowflake", "Redshift", "BigQuery", "Oracle", "PostgreSQL", "SQL Server"],
+            streaming_tools=["Kafka", "Flink", "Spark Streaming", "MSK", "Kinesis", "Pub/Sub"],
+            orchestration_tools=["Airflow", "Control-M", "Autosys", "Step Functions"],
+            required_skills=["Terraform", "Docker", "Kubernetes", "Jenkins", "Great Expectations", "Power BI"],
+            seniority_level="Senior",
+        )
+
+        skills = generate_technical_skills(profile, jd, {"A": "AWS", "B": "Azure", "C": "GCP"})
+
+        self.assertLessEqual(len(skills["Cloud Platforms"]), 28)
+        for category, values in skills.items():
+            if category == "Cloud Platforms":
+                continue
+            expected_limit = 18 if category == "Additional ATS Keywords" else 16
+            self.assertLessEqual(len(values), expected_limit)
 
     def test_adjacent_telecom_strategy_keeps_skills_streaming_platform_focused(self) -> None:
         profile = ResumeProfile(raw_text="Healthcare and finance streaming platforms.")

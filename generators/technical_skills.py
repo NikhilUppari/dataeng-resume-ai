@@ -11,6 +11,13 @@ from utils.technology_terms import extract_known_technologies, is_known_technolo
 from utils.text import dedupe_keep_order
 
 
+DEFAULT_SKILL_LIMIT = 16
+CLOUD_SKILL_LIMIT = 28
+TELECOM_SKILL_LIMIT = 14
+TELECOM_CLOUD_SKILL_LIMIT = 16
+ADDITIONAL_KEYWORD_LIMIT = 18
+
+
 def generate_technical_skills(
     profile: ResumeProfile,
     jd: JobAnalysis,
@@ -40,7 +47,7 @@ def generate_technical_skills(
         return _telecom_adjacent_skills(selected_clouds, jd, role_tools, cloud_services, tailoring_strategy)
 
     return {
-        "Cloud Platforms": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(role_tools, _cloud_terms())), 60),
+        "Cloud Platforms": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(role_tools, _cloud_terms())), CLOUD_SKILL_LIMIT),
         "Big Data Technologies": _limit(dedupe_keep_order(jd.data_tools + _matching_tools(role_tools, _BIG_DATA_TOOLS))),
         "Data Engineering & ETL": _limit(dedupe_keep_order(jd.etl_tools + _matching_tools(role_tools, _ETL_TOOLS) + ["ETL", "ELT"])),
         "Data Warehousing": _limit(dedupe_keep_order(_matching_tools(jd_tools + role_tools, _WAREHOUSE_TOOLS) + ["dimensional modeling", "star schema"])),
@@ -68,12 +75,12 @@ def _telecom_adjacent_skills(
 ) -> Dict[str, List[str]]:
     platform_tools = dedupe_keep_order(tailoring_strategy.adjacent_terms + role_tools + jd.required_skills + jd.preferred_skills)
     return {
-        "Streaming & Distributed Systems": _limit(dedupe_keep_order(jd.streaming_tools + _matching_tools(platform_tools, _STREAMING_TOOLS) + ["event-driven architecture"]), 18),
-        "Backend & Platform Engineering": _limit(dedupe_keep_order(_matching_tools(platform_tools, _BACKEND_PLATFORM_TOOLS) + ["REST APIs", "async processing"]), 18),
-        "Cloud & Containers": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(platform_tools + cloud_services, _cloud_terms() + _CONTAINER_TOOLS)), 22),
-        "Observability & SRE": _limit(dedupe_keep_order(_matching_tools(platform_tools, _MONITORING_TOOLS + _SRE_TERMS) + ["SLO/SLI", "incident response", "root cause analysis"]), 18),
-        "Data Stores & File Processing": _limit(dedupe_keep_order(jd.databases + _matching_tools(platform_tools, _DATABASE_TOOLS + _FILE_PROCESSING_TERMS) + ["SQL optimization", "partitioning"]), 18),
-        "Data Engineering Core": _limit(dedupe_keep_order(jd.data_tools + jd.etl_tools + _matching_tools(platform_tools, _BIG_DATA_TOOLS + _ETL_TOOLS)), 18),
+        "Streaming & Distributed Systems": _limit(dedupe_keep_order(jd.streaming_tools + _matching_tools(platform_tools, _STREAMING_TOOLS) + ["event-driven architecture"]), TELECOM_SKILL_LIMIT),
+        "Backend & Platform Engineering": _limit(dedupe_keep_order(_matching_tools(platform_tools, _BACKEND_PLATFORM_TOOLS) + ["REST APIs", "async processing"]), TELECOM_SKILL_LIMIT),
+        "Cloud & Containers": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(platform_tools + cloud_services, _cloud_terms() + _CONTAINER_TOOLS)), TELECOM_CLOUD_SKILL_LIMIT),
+        "Observability & SRE": _limit(dedupe_keep_order(_matching_tools(platform_tools, _MONITORING_TOOLS + _SRE_TERMS) + ["SLO/SLI", "incident response", "root cause analysis"]), TELECOM_SKILL_LIMIT),
+        "Data Stores & File Processing": _limit(dedupe_keep_order(jd.databases + _matching_tools(platform_tools, _DATABASE_TOOLS + _FILE_PROCESSING_TERMS) + ["SQL optimization", "partitioning"]), TELECOM_SKILL_LIMIT),
+        "Data Engineering Core": _limit(dedupe_keep_order(jd.data_tools + jd.etl_tools + _matching_tools(platform_tools, _BIG_DATA_TOOLS + _ETL_TOOLS)), TELECOM_SKILL_LIMIT),
     }
 
 
@@ -156,10 +163,10 @@ def _additional_keywords(role_tools: List[str], jd: JobAnalysis) -> List[str]:
     )
     jd_terms = [term for term in jd.required_skills + jd.preferred_skills + jd.ats_keywords if is_known_technology(term)]
     remaining_tools = [tool for tool in role_tools if tool.lower() not in grouped_terms]
-    return _limit(dedupe_keep_order(remaining_tools + jd_terms), 30)
+    return _limit(dedupe_keep_order(remaining_tools + jd_terms), ADDITIONAL_KEYWORD_LIMIT)
 
 
-def _limit(values: Iterable[str], maximum: int = 24) -> List[str]:
+def _limit(values: Iterable[str], maximum: int = DEFAULT_SKILL_LIMIT) -> List[str]:
     return list(values)[:maximum]
 
 

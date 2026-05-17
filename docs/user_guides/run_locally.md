@@ -9,7 +9,7 @@ Install these first:
 - Python 3.10 or newer
 - Git
 - PowerShell, Windows Terminal, or another terminal
-- Optional: Microsoft Word for best DOCX-to-PDF export on Windows
+- Optional: Microsoft Word for best DOCX-to-PDF export on Windows. If Word/Pandoc is unavailable, the app uses a built-in PDF fallback.
 - Optional: Ollama for local AI enrichment
 
 The app still works without Ollama by using deterministic local tailoring logic.
@@ -125,6 +125,6 @@ If the app says Ollama is unavailable, confirm the Ollama desktop app or service
 ollama list
 ```
 
-If PDF export is unavailable, use the DOCX output. PDF export depends on Microsoft Word with `docx2pdf` on Windows or a working Pandoc PDF toolchain.
+If Word/Pandoc PDF conversion is unavailable, the app uses a built-in fallback PDF export. DOCX remains the highest-fidelity editable output.
 
 If resume parsing is incomplete, try uploading a cleaner DOCX or TXT version. Highly formatted PDFs can be harder to parse reliably.

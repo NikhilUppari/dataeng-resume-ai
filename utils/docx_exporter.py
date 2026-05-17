@@ -15,12 +15,16 @@ from utils.technology_terms import is_known_technology, iter_tool_matches
 BODY_FONT_NAME = "Calibri"
 BODY_FONT_SIZE = Pt(10)
 HEADING_FONT_SIZE = Pt(12)
+EDUCATION_HEADING_FONT_SIZE = Pt(14)
+SUBHEADING_FONT_SIZE = Pt(10)
 SECTION_HEADING_BORDER_COLOR = "808080"
-HEADING_SPACE_BEFORE = Pt(7)
-HEADING_SPACE_AFTER = Pt(1)
+HEADING_SPACE_BEFORE = Pt(6)
+HEADING_SPACE_AFTER = Pt(2)
 COMPACT_SPACE_AFTER = Pt(0)
 SECTION_END_SPACE_AFTER = Pt(4)
 SINGLE_LINE_SPACING = 1.0
+BULLET_LEFT_INDENT = Inches(0.22)
+BULLET_FIRST_LINE_INDENT = Inches(-0.16)
 
 
 def build_docx(resume: TailoredResume) -> bytes:
@@ -36,6 +40,11 @@ def build_docx(resume: TailoredResume) -> bytes:
         styles[style_name].font.name = BODY_FONT_NAME
         styles[style_name].font.size = BODY_FONT_SIZE
 
+    for index, detail in enumerate(resume.personal_details):
+        paragraph = document.add_paragraph()
+        _compact_paragraph(paragraph)
+        _add_run(paragraph, detail, bold=(index == 0))
+
     _heading(document, "Professional Summary")
     for item in resume.summary:
         _bullet(document, item)
@@ -45,14 +54,14 @@ def build_docx(resume: TailoredResume) -> bytes:
         if values:
             paragraph = document.add_paragraph()
             _compact_paragraph(paragraph)
-            _add_run(paragraph, f"{heading}: ", bold=True)
+            _add_run(paragraph, f"{heading}: ", bold=True, size=SUBHEADING_FONT_SIZE)
             _add_values_run(paragraph, values, bold_tools=False)
 
     _heading(document, "Professional Experience")
     for exp in resume.experiences:
         paragraph = document.add_paragraph()
         _compact_paragraph(paragraph)
-        _add_run(paragraph, f"Client: {exp.client_name}", bold=True)
+        _add_run(paragraph, exp.client_name, bold=True, size=SUBHEADING_FONT_SIZE)
         for value in [exp.title, exp.dates, exp.domain]:
             if value:
                 _add_run(paragraph, f" | {value}")
@@ -63,7 +72,7 @@ def build_docx(resume: TailoredResume) -> bytes:
         if exp.environment:
             paragraph = document.add_paragraph()
             _compact_paragraph(paragraph, space_after=SECTION_END_SPACE_AFTER)
-            _add_run(paragraph, "Environment: ", bold=True)
+            _add_run(paragraph, "Environment: ", bold=True, size=SUBHEADING_FONT_SIZE)
             _add_values_run(paragraph, exp.environment, bold_tools=False)
 
     if resume.certifications:
@@ -72,7 +81,7 @@ def build_docx(resume: TailoredResume) -> bytes:
             _bullet(document, cert)
 
     if resume.education:
-        _heading(document, "Education")
+        _heading(document, "Education", size=EDUCATION_HEADING_FONT_SIZE)
         for line in resume.education.splitlines():
             if line.strip():
                 paragraph = document.add_paragraph()
@@ -84,24 +93,24 @@ def build_docx(resume: TailoredResume) -> bytes:
     return output.getvalue()
 
 
-def _heading(document: Document, text: str) -> None:
+def _heading(document: Document, text: str, *, size=HEADING_FONT_SIZE) -> None:
     paragraph = document.add_paragraph()
     paragraph.paragraph_format.space_before = HEADING_SPACE_BEFORE
     paragraph.paragraph_format.space_after = HEADING_SPACE_AFTER
     paragraph.paragraph_format.line_spacing = SINGLE_LINE_SPACING
     _add_heading_border(paragraph)
-    _add_run(paragraph, text, bold=True, size=HEADING_FONT_SIZE)
+    _add_run(paragraph, text, bold=True, size=size)
 
 
 def _bullet(document: Document, text: str) -> None:
     paragraph = document.add_paragraph(style="List Bullet")
-    _compact_paragraph(paragraph)
+    _compact_bullet_paragraph(paragraph)
     _add_run(paragraph, text)
 
 
 def _bullet_with_bold_tools(document: Document, text: str, tools: Iterable[str]) -> None:
     paragraph = document.add_paragraph(style="List Bullet")
-    _compact_paragraph(paragraph)
+    _compact_bullet_paragraph(paragraph)
     matches = []
     candidates = [tool for tool in set(tools) if is_known_technology(tool)]
     for tool in sorted(candidates, key=len, reverse=True):
@@ -144,6 +153,12 @@ def _compact_paragraph(paragraph, *, space_after=COMPACT_SPACE_AFTER) -> None:
     paragraph.paragraph_format.space_before = Pt(0)
     paragraph.paragraph_format.space_after = space_after
     paragraph.paragraph_format.line_spacing = SINGLE_LINE_SPACING
+
+
+def _compact_bullet_paragraph(paragraph) -> None:
+    _compact_paragraph(paragraph)
+    paragraph.paragraph_format.left_indent = BULLET_LEFT_INDENT
+    paragraph.paragraph_format.first_line_indent = BULLET_FIRST_LINE_INDENT
 
 
 def _add_heading_border(paragraph) -> None:

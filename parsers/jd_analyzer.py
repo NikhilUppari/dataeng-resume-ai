@@ -11,7 +11,7 @@ TECH_GROUPS: Dict[str, List[str]] = {
     "cloud_platforms": ["AWS", "Azure", "GCP", "Google Cloud", "Databricks", "Snowflake"],
     "data_tools": ["Spark", "PySpark", "Databricks", "Hadoop", "Hive", "dbt", "Delta Lake", "Iceberg"],
     "databases": ["SQL Server", "PostgreSQL", "MySQL", "Oracle", "DynamoDB", "Cosmos DB", "BigQuery", "Redshift", "Snowflake", "Teradata", "MongoDB"],
-    "orchestration_tools": ["Airflow", "Composer", "Control-M", "Autosys", "Step Functions", "ADF", "Azure Data Factory", "Prefect", "Dagster"],
+    "orchestration_tools": ["Airflow", "Astronomer", "Composer", "Control-M", "Autosys", "Step Functions", "ADF", "Azure Data Factory", "Prefect", "Dagster"],
     "etl_tools": ["Informatica", "Talend", "SSIS", "AWS Glue", "Azure Data Factory", "Dataflow", "Data Fusion", "Fivetran", "Matillion"],
     "streaming_tools": ["Kafka", "Kinesis", "Pub/Sub", "Event Hub", "Spark Streaming", "Flink", "MSK", "Stream Analytics"],
     "ai_ml_tools": ["SageMaker", "Bedrock", "Vertex AI", "Azure ML", "Azure OpenAI", "Gemini", "MLflow", "scikit-learn"],
@@ -183,5 +183,12 @@ def _capitalized_tech_phrases(text: str) -> List[str]:
         "Data Governance",
         "Data Lake",
         "Data Warehouse",
+        "DAG design",
+        "performance tuning",
+        "platform administration",
+        "enterprise orchestration",
+        "delivery support",
+        "technical depth",
+        "reliability",
     ])
     return _find_terms(text, known)

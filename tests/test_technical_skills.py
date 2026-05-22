@@ -104,8 +104,8 @@ class TechnicalSkillsGenerationTests(unittest.TestCase):
         for category, values in skills.items():
             if category == "Cloud Platforms":
                 continue
-            expected_limit = 18 if category == "Additional ATS Keywords" else 16
-            self.assertLessEqual(len(values), expected_limit)
+            self.assertLessEqual(len(values), 16)
+        self.assertNotIn("Additional ATS Keywords", skills)
 
     def test_adjacent_telecom_strategy_keeps_skills_streaming_platform_focused(self) -> None:
         profile = ResumeProfile(raw_text="Healthcare and finance streaming platforms.")

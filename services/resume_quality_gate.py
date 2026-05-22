@@ -28,8 +28,12 @@ def evaluate_resume_quality(ats_score: Dict[str, object]) -> Dict[str, object]:
     if domain < MIN_DOMAIN_ALIGNMENT and not adjacent_strategy:
         failures.append(f"Domain alignment is below {MIN_DOMAIN_ALIGNMENT}%.")
 
+    download_allowed = bool(ats_score)
+
     return {
         "passed": not failures,
+        "download_allowed": download_allowed,
+        "review_required": bool(failures),
         "failures": failures,
         "adjacent_platform_fit": adjacent_strategy,
         "thresholds": {

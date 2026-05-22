@@ -8,6 +8,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 
+from utils.date_format import normalize_display_dates
 from utils.schema import TailoredResume
 from utils.technology_terms import is_known_technology, iter_tool_matches
 
@@ -62,7 +63,7 @@ def build_docx(resume: TailoredResume) -> bytes:
         paragraph = document.add_paragraph()
         _compact_paragraph(paragraph)
         _add_run(paragraph, exp.client_name, bold=True, size=SUBHEADING_FONT_SIZE)
-        for value in [exp.title, exp.dates, exp.domain]:
+        for value in [exp.title, normalize_display_dates(exp.dates)]:
             if value:
                 _add_run(paragraph, f" | {value}")
 

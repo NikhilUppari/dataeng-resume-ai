@@ -144,8 +144,21 @@ Data Engineer | 01/2023 - 12/2023
 
         profile = parse_resume_text(resume_text)
 
-        self.assertEqual(profile.experiences[0].dates, "Jan 2024 - Present")
+        self.assertEqual(profile.experiences[0].dates, "January 2024 - Present")
         self.assertEqual(profile.experiences[1].dates, "01/2023 - 12/2023")
+
+    def test_october_date_range_is_not_split_by_to(self):
+        resume_text = """
+PROFESSIONAL EXPERIENCE
+Northern Trust
+Data Engineer | October 2021 - July 2024
+- Built financial services data pipelines.
+"""
+
+        profile = parse_resume_text(resume_text)
+
+        self.assertEqual(profile.experiences[0].dates, "October 2021 - July 2024")
+        self.assertNotIn("Oc - ber", profile.experiences[0].dates)
 
 
 if __name__ == "__main__":

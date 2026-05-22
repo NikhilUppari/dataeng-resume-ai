@@ -91,7 +91,7 @@ class DocxExporterBoldFormattingTests(unittest.TestCase):
 
         client_header = _paragraph_containing(
             document,
-            "Example Client | Senior Data Engineer | 2023 - Present | Healthcare",
+            "Example Client | Senior Data Engineer | 2023 - Present",
         )
 
         self.assertEqual(client_header.style.name, "Normal")

@@ -62,7 +62,6 @@ def generate_technical_skills(
         "BI & Visualization": _limit(dedupe_keep_order(_matching_tools(role_tools, _BI_TOOLS))),
         "Monitoring & Observability": _limit(dedupe_keep_order(_matching_tools(role_tools, _MONITORING_TOOLS) + ["logging", "alerting", "SLA monitoring"])),
         "Testing & Data Quality": _limit(dedupe_keep_order(_matching_tools(role_tools, _TESTING_TOOLS) + ["unit testing", "reconciliation checks", "schema validation"])),
-        "Additional ATS Keywords": _additional_keywords(role_tools, jd),
     }
 
 
@@ -104,8 +103,8 @@ def _jd_tools(jd: JobAnalysis) -> List[str]:
         + jd.preferred_skills
         + jd.ats_keywords
     )
-    tools = [tool for tool in direct if is_known_technology(tool)]
-    tools.extend(extract_known_technologies(" ".join(direct)))
+    tools = extract_known_technologies(" ".join(direct))
+    tools.extend(tool for tool in direct if is_known_technology(tool))
     return dedupe_keep_order(tools)
 
 
@@ -201,7 +200,7 @@ _WAREHOUSE_TOOLS = ["Snowflake", "Redshift", "Amazon Redshift", "BigQuery", "Syn
 _DATABASE_TOOLS = ["PostgreSQL", "SQL Server", "MySQL", "Oracle", "DynamoDB", "Cosmos DB", "BigQuery", "Redshift", "Snowflake", "Teradata", "MongoDB", "NoSQL", "RDS", "Spanner", "Bigtable", "Cloud SQL"]
 _STREAMING_TOOLS = ["Kafka", "Apache Kafka", "Kinesis", "Amazon Kinesis", "Pub/Sub", "Event Hub", "Spark Streaming", "Spark Structured Streaming", "Flink", "MSK", "Amazon MSK", "Stream Analytics"]
 _PROGRAMMING_TOOLS = ["Python", "SQL", "PySpark", "Scala", "Java", "Golang", "Go", "PL/SQL", "Shell Scripting", "Unix Shell Scripting"]
-_ORCHESTRATION_TOOLS = ["Airflow", "Apache Airflow", "Composer", "Control-M", "Autosys", "Step Functions", "ADF", "Azure Data Factory", "Prefect", "Dagster", "MWAA"]
+_ORCHESTRATION_TOOLS = ["Airflow", "Apache Airflow", "Astronomer", "Composer", "Control-M", "Autosys", "Step Functions", "ADF", "Azure Data Factory", "Prefect", "Dagster", "MWAA"]
 _DEVOPS_TOOLS = ["Git", "GitHub Actions", "Jenkins", "Docker", "Kubernetes", "OpenShift", "Helm", "Terraform", "CI/CD", "CodePipeline", "CodeBuild", "Cloud Build", "Azure DevOps", "DevOps", "Bicep", "ECS", "EKS", "AKS", "GKE"]
 _GOVERNANCE_TOOLS = ["Unity Catalog", "Purview", "Lake Formation", "IAM", "KMS", "Key Vault", "Secrets Manager", "Secret Manager", "CloudTrail", "RBAC"]
 _AI_ML_TOOLS = ["SageMaker", "Amazon SageMaker", "Bedrock", "Vertex AI", "Azure ML", "Azure OpenAI", "Gemini", "MLflow", "scikit-learn", "Spark MLlib", "Pandas", "NumPy"]

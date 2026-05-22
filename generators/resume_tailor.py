@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, List
 
 from generators.technical_skills import generate_technical_skills
@@ -42,26 +43,11 @@ JD_TAILORED_EXPERIENCE_COUNT = 3
 BASELINE_DATA_STACK = ["Python", "SQL", "Spark", "Airflow", "Git", "data quality"]
 RESPONSIBILITY_COUNT_BY_CLIENT_ORDER = [27, 25, 23, 20, 10]
 SUMMARY_POINT_COUNT = 12
-BULLET_MIN_WORDS = 29
-BULLET_MAX_WORDS = 32
-BULLET_MIN_TECH_TERMS = 3
-BULLET_MAX_TECH_TERMS = 4
-BULLET_LENGTHENING_PHRASES = [
-    "with throughput tuning, retry behavior, and recovery notes built into daily support",
-    "backed by deployment checks, service metrics, and practical support handoff",
-    "so lineage, alert context, and production triage stayed easier to follow",
-    "using rollout validation, release notes, and incident playbooks for smoother adoption",
-    "with partition strategy, alert routing, and capacity reviews kept current",
-    "reducing manual review through automation, dashboards, and operating runbooks",
-    "with schema controls, reconciliation checks, and peer review supporting cleaner releases",
-    "so analytics users received fresher datasets without adding brittle operational steps",
-]
-TOOL_MENTION_PHRASES = [
-    "with {tools} supporting validation",
-    "using {tools} for delivery controls",
-    "backed by {tools} during release checks",
-    "with {tools} improving operational review",
-]
+BULLET_MIN_WORDS = 18
+BULLET_MAX_WORDS = 34
+BULLET_MAX_TECH_TERMS = 3
+SUMMARY_MIN_WORDS = 18
+SUMMARY_MAX_WORDS = 32
 RECENT_AI_TOOLS_BY_CLOUD = {
     "AWS": ["SageMaker", "Bedrock", "MLflow"],
     "Azure": ["Azure ML", "Azure OpenAI", "MLflow"],
@@ -165,7 +151,11 @@ def _generate_summary(
         f"{seniority} Data Engineer building cloud data platforms with {platform_stack} and production-focused delivery practices for analytics and operations teams.",
         "Hands-on engineering spans orchestration, data warehousing, streaming ingestion, governance, SQL tuning, and reusable data quality controls.",
         f"Experienced with {responsibility_focus}, translating business needs into maintainable pipelines, trusted datasets, and measurable reporting outcomes.",
-        f"Practical exposure to AI/ML data enablement using {genai} where relevant, while keeping solutions production-focused, compliant, observable, and easy for analytics teams to consume.",
+        (
+            f"Practical exposure to AI/ML data enablement using {genai} where relevant, while keeping solutions production-focused, compliant, observable, and easy for analytics teams to consume."
+            if genai and _jd_has_ai_focus(jd)
+            else "Production delivery emphasizes readable pipeline design, operational monitoring, data quality checks, and straightforward handoffs for analytics and platform teams."
+        ),
     ], jd, skills, experiences, strategy)
 
 
@@ -180,16 +170,16 @@ def _fit_summary_points(
     clouds = ", ".join(skills.get("Cloud Platforms", [])[:4]) or "cloud data platforms"
     summary_tools = filter_blocked_claim_terms(_summary_tools(jd), strategy)
     data_tools = ", ".join(summary_tools[:5]) or "Python, SQL, Spark"
-    recent_ai = ", ".join(_recent_ai_tools(experiences[0].selected_cloud if experiences else "AWS", experiences[0].dates if experiences else "")[:2])
-    if recent_ai:
-        recent_ai_phrase = recent_ai
-    else:
-        recent_ai_phrase = "MLflow and governed feature datasets"
+    recent_ai = ", ".join(_recent_ai_tools(experiences[0].selected_cloud if experiences else "AWS", experiences[0].dates if experiences else "", jd)[:2])
     support_points = [
         f"Recent delivery emphasizes {clouds}, production orchestration, and clear ownership of batch and streaming data workflows for analytics and operations teams.",
         f"Core engineering strengths include {data_tools}, data modeling, SQL optimization, monitoring, and controlled release practices.",
         "Builds data products with practical observability, alerting, runbooks, and root-cause analysis for steady production support.",
-        "Uses AI and ML tooling selectively in recent work, including " + recent_ai_phrase + ", for metadata review, feature readiness, and data quality acceleration.",
+        (
+            "Uses AI and ML tooling selectively in recent work, including " + recent_ai + ", for metadata review, feature readiness, and data quality acceleration."
+            if recent_ai
+            else "Improves production data quality with reconciliation checks, schema validation, and practical monitoring for recurring pipeline issues."
+        ),
         "Modernizes legacy ingestion paths, file movement, SFTP handoffs, object storage layouts, and downstream consumption patterns.",
         "Creates maintainable data engineering services with reusable orchestration, validation checks, version control, and stakeholder-ready datasets.",
         "Applies the right platform services for each engagement, balancing job requirements with production readiness, team adoption, and long-term maintainability.",
@@ -264,17 +254,17 @@ SUMMARY_LENGTHENING_PHRASES = [
 def _fit_summary_word_range(text: str, phrase_offset: int = 0) -> str:
     sentence = text.strip().rstrip(".")
     phrase_index = phrase_offset
-    while len(sentence.split()) < BULLET_MIN_WORDS:
+    while len(sentence.split()) < SUMMARY_MIN_WORDS:
         current_count = len(sentence.split())
-        needed = BULLET_MIN_WORDS - current_count
-        remaining = BULLET_MAX_WORDS - current_count
+        needed = SUMMARY_MIN_WORDS - current_count
+        remaining = SUMMARY_MAX_WORDS - current_count
         phrase = _select_summary_extension(needed, remaining, phrase_index)
         sentence = f"{sentence}, {phrase}"
         phrase_index += 1
 
     tokens = sentence.split()
-    if len(tokens) > BULLET_MAX_WORDS:
-        tokens = tokens[:BULLET_MAX_WORDS]
+    if len(tokens) > SUMMARY_MAX_WORDS:
+        tokens = tokens[:SUMMARY_MAX_WORDS]
     return " ".join(tokens).rstrip(",;") + "."
 
 
@@ -304,7 +294,7 @@ def _tailor_experiences(
         selected_cloud = cloud_by_client.get(exp.client_name, exp.selected_cloud or "AWS")
         cloud_context_terms = jd_terms if tailor_to_jd else []
         cloud_tools = filter_timeline_safe(expand_cloud_services(selected_cloud, cloud_context_terms, jd.seniority_level), exp.dates)
-        recent_ai_tools = _recent_ai_tools(selected_cloud, exp.dates) if index == 0 else []
+        recent_ai_tools = _recent_ai_tools(selected_cloud, exp.dates, jd) if index == 0 else []
         active_domain = _resolve_experience_domain(exp.domain, job_domain, strategy)
         domain_terms = _terms_for_experience_domain(active_domain, jd, job_domain, tailor_to_jd, strategy)
         bullet_count = _responsibility_count_for_client(index)
@@ -351,24 +341,22 @@ def _generate_bullets(
     recent_ai_tools: List[str],
 ) -> List[str]:
     data_tools = _tools_for_experience(exp, jd, tailor_to_jd, exp_index, strategy)
-    verbs = ACTION_VERBS[exp_index % len(ACTION_VERBS) :] + ACTION_VERBS[: exp_index % len(ACTION_VERBS)]
-    patterns = _patterns_for_strategy(active_domain, strategy)
     focus = _focus_for_strategy(active_domain, exp.client_name, exp_index, strategy)
     bullets: List[str] = []
     if tailor_to_jd:
-        tools = dedupe_keep_order(data_tools + cloud_tools)
+        tools = dedupe_keep_order([cloud] + data_tools + recent_ai_tools + ["Python", "SQL"] + cloud_tools)
     else:
         tools = dedupe_keep_order(cloud_tools + data_tools)
+    tools = filter_timeline_safe(tools[:24], exp.dates)
+    templates = _bullet_templates_for_focus(_jd_focus(jd), active_domain, strategy)
+    jd_focus = _jd_focus(jd)
     for idx in range(count):
-        pattern = patterns[idx % len(patterns)]
-        tool1 = tools[idx % len(tools)] if tools else cloud
-        tool2 = tools[(idx + 3) % len(tools)] if tools else "SQL"
-        tool3 = tools[(idx + 6) % len(tools)] if tools else "Python"
-        tool4 = tools[(idx + 9) % len(tools)] if tools else "Airflow"
+        template = templates[idx % len(templates)]
+        selected_tools = _select_bullet_tools(tools, cloud, idx, jd_focus)
         domain = domain_terms[(idx + _stable_offset(exp.client_name, exp_index)) % len(domain_terms)] if domain_terms else "enterprise"
         focus_area = focus[idx % len(focus)]
-        text = pattern.format(
-            verb=verbs[idx % len(verbs)],
+        text = template.format(
+            verb=ACTION_VERBS[(idx + exp_index) % len(ACTION_VERBS)],
             domain=domain,
             focus=focus_area["focus"],
             data_asset=focus_area["data_asset"],
@@ -376,11 +364,11 @@ def _generate_bullets(
             control=focus_area["control"],
             outcome=focus_area["outcome"],
             cloud=cloud,
-            tool1=tool1,
-            tool2=tool2,
-            tool3=tool3,
+            tool1=selected_tools[0],
+            tool2=selected_tools[1],
+            tool3=selected_tools[2],
+            metric=_metric_for(idx, exp_index),
         )
-        text = _ensure_tool_mentions(text, [cloud, tool1, tool2, tool3, tool4], idx)
         text = _fit_responsibility_word_range(strip_timeline_unsafe_text(text, exp.dates), idx)
         bullets.append(text)
     if exp_index == 0 and recent_ai_tools:
@@ -394,9 +382,144 @@ def _responsibility_count_for_client(index: int) -> int:
     return RESPONSIBILITY_COUNT_BY_CLIENT_ORDER[-1]
 
 
-def _recent_ai_tools(cloud: str, dates: str) -> List[str]:
+def _recent_ai_tools(cloud: str, dates: str, jd: JobAnalysis) -> List[str]:
+    if not _jd_has_ai_focus(jd):
+        return []
     tools = RECENT_AI_TOOLS_BY_CLOUD.get(cloud, RECENT_AI_TOOLS_BY_CLOUD["AWS"])
     return filter_timeline_safe(tools, dates)[:3]
+
+
+def _jd_has_ai_focus(jd: JobAnalysis) -> bool:
+    terms = " ".join(all_jd_terms(jd)).lower()
+    return bool(re.search(r"\b(ai|ml|genai|llm|rag|model|feature)\b|machine learning|generative ai", terms))
+
+
+def _jd_focus(jd: JobAnalysis) -> str:
+    terms = " ".join(all_jd_terms(jd)).lower()
+    if any(term in terms for term in ["genai", "generative ai", "llm", "rag", "vector", "machine learning", "mlops"]):
+        return "ai_ml"
+    if any(term in terms for term in ["databricks", "spark", "delta lake", "performance tuning", "advanced spark"]):
+        return "spark_platform"
+    if any(term in terms for term in ["airflow", "astronomer", "dag", "orchestration"]):
+        return "orchestration"
+    if any(term in terms for term in ["terraform", "kubernetes", "devops", "ci/cd", "infrastructure"]):
+        return "cloud_devops"
+    if any(term in terms for term in ["snowflake", "warehouse", "sql", "dimensional", "reporting"]):
+        return "warehouse_sql"
+    if any(term in terms for term in ["kafka", "flink", "streaming", "event"]):
+        return "streaming"
+    return "general"
+
+
+def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStrategy) -> List[str]:
+    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
+        return [
+            "Built high-volume event ingestion for {data_asset} with {tool1} and {tool2}, improving recovery behavior for {stakeholder} teams.",
+            "Tuned partition strategy and retry handling in {tool1} workflows, reducing delayed operational loads by {metric}.",
+            "Improved observability for {focus} services with {tool1}, giving support teams clearer failure context during incident triage.",
+            "Packaged deployment checks for {tool1} services on {cloud}, making release validation more repeatable across platform environments.",
+            "Refined file distribution paths for {data_asset} using {tool1} and {tool2}, improving reconciliation and downstream handoff accuracy.",
+        ]
+    if focus == "spark_platform":
+        return [
+            "Reduced Spark job runtime for {data_asset} by tuning partition sizing and caching frequently accessed datasets in {tool1}.",
+            "Optimized Delta-style merge patterns in {tool1} to improve ingestion reliability for {focus} workloads by {metric}.",
+            "Reviewed failed {tool1} stages with Spark UI patterns, then adjusted shuffle-heavy transformations to reduce repeated incident review.",
+            "Added {control} checks around {domain} datasets using {tool1} and {tool2}, improving trust in daily refresh results.",
+            "Built reusable validation notebooks in {tool1} so {stakeholder} teams could investigate data issues without waiting on engineers.",
+            "Moved brittle batch logic into maintainable {tool1} workflows, reducing manual recovery during delayed upstream file arrivals.",
+            "Tuned Spark SQL transformations with {tool1} by pruning wide joins and caching high-use reference datasets.",
+            "Separated heavy {tool1} transformation steps from lightweight audit checks so {focus} pipelines remained easier to troubleshoot.",
+        ]
+    if focus == "orchestration":
+        return [
+            "Built Airflow DAG retry handling for {focus} pipelines, improving SLA recovery when upstream loads arrived late.",
+            "Refactored scheduling dependencies in {tool1} so nightly {data_asset} refreshes failed fast with clearer alert context.",
+            "Added task-level monitoring and backfill controls in {tool1}, reducing repeated support escalations by {metric}.",
+            "Standardized deployment checks for {tool1} DAG changes, helping release teams catch schedule and dependency issues earlier.",
+            "Documented operational runbooks for {focus} failures, giving analysts clearer expectations during data delay incidents.",
+        ]
+    if focus == "warehouse_sql":
+        return [
+            "Improved SQL query performance for {data_asset} by pruning joins, indexing lookup paths, and simplifying transformation logic.",
+            "Built dimensional models in {tool1} that made {focus} reporting easier to reconcile and maintain.",
+            "Created reconciliation checks between source extracts and {tool1} tables, reducing reporting defects by {metric}.",
+            "Tuned incremental load patterns with {tool1} and {tool2}, lowering warehouse refresh time during month-end processing.",
+            "Partnered with {stakeholder} users to clarify metric definitions before moving logic into governed reporting tables.",
+        ]
+    if focus == "cloud_devops":
+        return [
+            "Automated deployment checks for {tool1} pipelines on {cloud}, reducing release risk for production data workflows.",
+            "Improved CI/CD promotion steps with {tool1}, making rollback and environment validation easier for support teams.",
+            "Configured monitoring around {tool1} services so incident reviews included runtime, failure, and capacity context.",
+            "Reduced manual environment drift by standardizing configuration patterns across {cloud} pipeline deployments.",
+            "Worked with platform teams to review access, secrets, and release controls before production rollout.",
+        ]
+    if focus == "ai_ml":
+        return [
+            "Prepared governed feature datasets with {tool1} and {tool2}, improving model-readiness checks for analytics teams.",
+            "Added lightweight metadata review using {tool1}, helping users identify quality issues before model or reporting consumption.",
+            "Built repeatable data preparation workflows for {data_asset}, keeping lineage and validation clear for ML use cases.",
+            "Partnered with analytics teams to separate experimental ML work from production ingestion responsibilities.",
+            "Monitored feature refresh failures and corrected upstream data gaps before they affected model scoring workflows.",
+        ]
+    if focus == "streaming":
+        return [
+            "Built event-driven ingestion with {tool1}, improving freshness for {data_asset} consumed by {stakeholder} teams.",
+            "Tuned consumer retry behavior and partition usage in {tool1}, reducing delayed message processing by {metric}.",
+            "Added schema validation around streaming feeds so downstream transformations failed with clearer diagnostics.",
+            "Balanced batch and streaming paths for {focus} workloads, keeping recovery practical during source system delays.",
+            "Improved operational dashboards for {tool1} jobs so support teams could spot lag and failure patterns sooner.",
+        ]
+    return [
+        "Built reliable ingestion pipelines for {data_asset} using {tool1} and {tool2}, improving {outcome} for {stakeholder} teams.",
+        "Resolved recurring production failures in {focus} workflows by improving retry handling, validation checks, and alert context.",
+        "Optimized SQL and transformation logic for {data_asset}, reducing refresh delays by {metric}.",
+        "Created data quality checks around {domain} datasets so reporting users could trust daily output.",
+        "Partnered with {stakeholder} users to clarify requirements before promoting pipeline changes into production.",
+    ]
+
+
+def _select_bullet_tools(tools: List[str], cloud: str, offset: int, focus: str) -> List[str]:
+    candidates = dedupe_keep_order(tool for tool in tools if tool and is_known_technology(tool))
+    preferred_by_focus = {
+        "spark_platform": ["Databricks", "Spark", "Apache Spark", "Delta Lake", "Spark SQL", "PySpark", "SQL", "Airflow", "Astronomer", "Snowflake"],
+        "orchestration": ["Airflow", "Astronomer", "Apache Airflow", "MWAA", "Step Functions", "Python", "SQL", "Databricks"],
+        "warehouse_sql": ["SQL", "Snowflake", "Databricks SQL", "Redshift", "BigQuery", "SQL Server", "dbt", "Python"],
+        "cloud_devops": ["Terraform", "Docker", "Kubernetes", "GitHub Actions", "Jenkins", "CI/CD", "CloudWatch", "Azure DevOps"],
+        "ai_ml": ["SageMaker", "MLflow", "Vertex AI", "Azure ML", "Python", "Spark", "Databricks"],
+        "streaming": ["Kafka", "Flink", "Kinesis", "Spark Streaming", "Pub/Sub", "MSK", "SQL"],
+    }
+    preferred = preferred_by_focus.get(focus, [])
+    if preferred:
+        preferred_lookup = {item.lower() for item in preferred}
+        preferred_candidates = dedupe_keep_order(tool for tool in candidates if tool.lower() in preferred_lookup)
+        if len(preferred_candidates) >= BULLET_MAX_TECH_TERMS:
+            candidates = preferred_candidates
+        else:
+            candidates = dedupe_keep_order(preferred_candidates + candidates)
+    if cloud and is_known_technology(cloud) and len([tool for tool in candidates if tool.lower() in {item.lower() for item in preferred}]) < BULLET_MAX_TECH_TERMS:
+        candidates = dedupe_keep_order([cloud] + candidates)
+    if not candidates:
+        candidates = [cloud, "Python", "SQL"]
+    rotated = candidates[offset % len(candidates) :] + candidates[: offset % len(candidates)]
+    selected = rotated[:BULLET_MAX_TECH_TERMS]
+    while len(selected) < BULLET_MAX_TECH_TERMS:
+        selected.append(selected[-1] if selected else "SQL")
+    return selected
+
+
+def _metric_for(index: int, exp_index: int) -> str:
+    metrics = [
+        "35%",
+        "28%",
+        "40%",
+        "30%",
+        "45%",
+        "25%",
+        "50%",
+    ]
+    return metrics[(index + exp_index) % len(metrics)]
 
 
 def _blend_recent_ai_bullets(
@@ -420,8 +543,8 @@ def _blend_recent_ai_bullets(
         (
             min(4, len(bullets) - 1),
             (
-                f"Added lightweight {ai_tool} checks around {data_asset} metadata using {tool1}, {tool2}, and SQL, "
-                f"helping {stakeholder} users spot quality issues without turning the pipeline into an AI project."
+                f"Added lightweight {ai_tool} checks around {data_asset} metadata using {tool1} and {tool2}, "
+                f"helping {stakeholder} users spot quality issues without disrupting core ingestion reliability."
             ),
         )
     )
@@ -437,8 +560,7 @@ def _blend_recent_ai_bullets(
         )
     updated = list(bullets)
     for index, text in replacements:
-        text = _ensure_tool_mentions(text, [cloud, ai_tool, second_ai_tool, tool1, tool2, "SQL"], index)
-        updated[index] = _fit_responsibility_word_range(strip_timeline_unsafe_text(text, exp.dates), index)
+        updated[index] = _fit_responsibility_word_range(strip_timeline_unsafe_text(text, exp.dates))
     return updated
 
 
@@ -468,7 +590,7 @@ def _generate_environment(
     else:
         jd_subset = _jd_tool_subset_for_older_experience(jd, exp.client_name, exp_index)
         base = dedupe_keep_order([cloud] + transfer_tools[:8] + jd_subset + cloud_tools + exp.environment + BASELINE_DATA_STACK)
-    complexity = 40
+    complexity = 24 if tailor_to_jd else 18
     return filter_timeline_safe(base[:complexity], exp.dates)
 
 
@@ -501,7 +623,7 @@ def _resume_safe_domain_terms(domain: str) -> List[str]:
     if same_domain(domain, "Healthcare"):
         return ["healthcare data", "claims data", "clinical reporting", "provider analytics", "pharmacy data"]
     if same_domain(domain, "Retail / E-commerce"):
-        return ["retail data", "order pipelines", "inventory analytics", "seller analytics", "customer analytics"]
+        return ["retail data", "order pipelines", "inventory optimization", "inventory analytics", "seller analytics", "customer analytics"]
     if same_domain(domain, "Aviation"):
         return ["aviation data", "flight operations", "crew scheduling", "maintenance analytics", "passenger analytics"]
     if same_domain(domain, "Travel / Online Travel Platform"):
@@ -564,34 +686,27 @@ def _jd_tool_subset_for_older_experience(jd: JobAnalysis, client_name: str, exp_
     return rotated[:target_count]
 
 
-def _ensure_tool_mentions(text: str, tools: List[str], phrase_offset: int = 0) -> str:
-    unique_tools = dedupe_keep_order(tool for tool in tools if tool and is_known_technology(tool))
-    if not unique_tools:
-        return text
-    present = extract_known_technologies(text, unique_tools)
-    missing = [tool for tool in unique_tools if tool.lower() not in {item.lower() for item in present}]
-    needed = max(0, BULLET_MIN_TECH_TERMS - len(present))
-    if needed == 0 or not missing:
-        return text
-    additions = missing[: min(needed, max(0, BULLET_MAX_TECH_TERMS - len(present)))]
-    if not additions:
-        return text
-    phrase = TOOL_MENTION_PHRASES[phrase_offset % len(TOOL_MENTION_PHRASES)]
-    return text.rstrip(".") + ", " + phrase.format(tools=", ".join(additions)) + "."
+RESPONSIBILITY_EXTENSIONS = [
+    "for production data consumers",
+    "during recurring support cycles",
+    "before business reporting windows",
+    "without adding manual recovery steps",
+    "for downstream analytics users",
+]
 
 
 def _fit_responsibility_word_range(text: str, phrase_offset: int = 0) -> str:
     sentence = text.strip().rstrip(".")
-    phrase_index = phrase_offset
-    while len(sentence.split()) < BULLET_MIN_WORDS:
-        phrase = BULLET_LENGTHENING_PHRASES[phrase_index % len(BULLET_LENGTHENING_PHRASES)]
-        sentence = f"{sentence}, {phrase}"
-        phrase_index += 1
-
     tokens = sentence.split()
-    if len(tokens) > BULLET_MAX_WORDS:
-        tokens = tokens[:BULLET_MAX_WORDS]
-    return " ".join(tokens).rstrip(",;") + "."
+    if len(tokens) < BULLET_MIN_WORDS:
+        sentence = f"{sentence}, {RESPONSIBILITY_EXTENSIONS[phrase_offset % len(RESPONSIBILITY_EXTENSIONS)]}"
+        tokens = sentence.split()
+    if len(tokens) <= BULLET_MAX_WORDS:
+        return " ".join(tokens).rstrip(",;") + "."
+
+    clipped = " ".join(tokens[:BULLET_MAX_WORDS])
+    clipped = clipped.rsplit(",", 1)[0] if "," in clipped[-24:] else clipped
+    return clipped.rstrip(",;") + "."
 
 
 def _patterns_for_strategy(domain: str, strategy: TailoringStrategy) -> List[str]:

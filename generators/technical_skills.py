@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, Iterable, List
 
 from parsers.jd_analyzer import JobAnalysis, all_jd_terms
@@ -30,6 +31,9 @@ def generate_technical_skills(
     jd_terms = all_jd_terms(jd)
     for cloud in selected_clouds:
         cloud_services.extend(expand_cloud_services(cloud, jd_terms, jd.seniority_level))
+    if not _has_ai_focus(jd_terms):
+        ai_lookup = {term.lower() for term in _AI_ML_TOOLS}
+        cloud_services = [service for service in cloud_services if service.lower() not in ai_lookup]
 
     existing_tools = _existing_tools(profile)
     experience_tools = _experience_tools(list(profile.experiences) + list(tailored_experiences or []))
@@ -87,7 +91,14 @@ def _genai_terms_if_relevant(jd_terms: Iterable[str]) -> List[str]:
     joined = " ".join(jd_terms).lower()
     if any(term in joined for term in ["genai", "generative ai", "llm", "bedrock", "openai", "gemini"]):
         return ["LLM integration", "RAG pipelines", "vector search", "prompt evaluation"]
-    return ["MLflow", "feature engineering"]
+    if _has_ai_focus(jd_terms):
+        return ["MLflow", "feature engineering"]
+    return []
+
+
+def _has_ai_focus(jd_terms: Iterable[str]) -> bool:
+    joined = " ".join(jd_terms).lower()
+    return bool(re.search(r"\b(ai|ml|genai|llm|rag|model|feature)\b|machine learning|generative ai", joined))
 
 
 def _jd_tools(jd: JobAnalysis) -> List[str]:

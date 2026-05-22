@@ -92,10 +92,37 @@ class ResumeTailoringDomainTests(unittest.TestCase):
 
         for point in tailored.experiences[0].responsibilities:
             matches = extract_known_technologies(point, tool_terms)
-            self.assertGreaterEqual(len(matches), 3, point)
-            self.assertLessEqual(len(matches), 4, point)
-            self.assertGreaterEqual(len(point.rstrip(".").split()), 29, point)
-            self.assertLessEqual(len(point.rstrip(".").split()), 33, point)
+            self.assertGreaterEqual(len(matches), 1, point)
+            self.assertLessEqual(len(matches), 3, point)
+            self.assertGreaterEqual(len(point.rstrip(".").split()), 18, point)
+            self.assertLessEqual(len(point.rstrip(".").split()), 34, point)
+
+    def test_spark_platform_jd_generates_natural_non_repetitive_bullets(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Built production data platforms.",
+            experiences=[
+                Experience(client_name="CVS Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"])
+            ],
+        )
+        jd = JobAnalysis(
+            data_tools=["Databricks", "Spark", "Delta Lake"],
+            orchestration_tools=["Airflow", "Astronomer"],
+            responsibilities=["Build Databricks advanced Spark performance tuning and Airflow DAG reliability for platform administration."],
+            seniority_level="Senior",
+        )
+
+        tailored = tailor_resume(profile, jd, {"CVS Health": "AWS"})
+        bullets = tailored.experiences[0].responsibilities[:5]
+        starts = [bullet.split()[0] for bullet in bullets]
+        rendered = "\n".join(bullets)
+
+        self.assertGreater(len(set(starts)), 2)
+        self.assertIn("Spark", rendered)
+        self.assertIn("Airflow", rendered)
+        self.assertNotIn("with throughput tuning", rendered)
+        self.assertNotIn("backed by deployment checks", rendered)
+        for bullet in bullets:
+            self.assertLessEqual(len(extract_known_technologies(bullet, tailored.experiences[0].environment)), 3, bullet)
 
     def test_client_responsibility_counts_follow_format_branch_targets(self) -> None:
         clients = [
@@ -180,6 +207,8 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             data_tools=["Databricks", "Spark"],
             databases=["Snowflake"],
             streaming_tools=["Kafka"],
+            ai_ml_tools=["SageMaker", "Bedrock"],
+            responsibilities=["Support ML feature readiness and metadata review for analytics teams."],
             domain_keywords=["HIPAA", "patient analytics"],
             seniority_level="Senior",
         )
@@ -189,7 +218,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertEqual(len(tailored.summary), 12)
         for point in tailored.summary:
             word_count = len(point.rstrip(".").split())
-            self.assertGreaterEqual(word_count, 29, point)
+            self.assertGreaterEqual(word_count, 18, point)
             self.assertLessEqual(word_count, 32, point)
             for forbidden in [
                 "tailored for",
@@ -217,6 +246,8 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             data_tools=["Databricks", "Spark"],
             databases=["Snowflake"],
             streaming_tools=["Kafka"],
+            ai_ml_tools=["SageMaker", "Bedrock"],
+            responsibilities=["Support ML feature readiness and metadata review for analytics teams."],
             domain_keywords=["HIPAA", "patient analytics"],
             seniority_level="Senior",
         )
@@ -228,6 +259,26 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertIn("SageMaker", recent_text)
         self.assertIn("Bedrock", recent_text)
         self.assertNotIn("Bedrock", older_text)
+
+    def test_non_ai_jd_does_not_force_ai_tools_into_recent_client(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Built healthcare data platforms.",
+            experiences=[
+                Experience(client_name="Oak Street Health", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"]),
+            ],
+        )
+        jd = JobAnalysis(
+            data_tools=["Databricks", "Spark"],
+            databases=["Snowflake"],
+            streaming_tools=["Kafka"],
+            seniority_level="Senior",
+        )
+
+        tailored = tailor_resume(profile, jd, {"Oak Street Health": "AWS"})
+        rendered = render_resume_text(tailored)
+
+        for ai_tool in ["Bedrock", "SageMaker", "Azure OpenAI", "Gemini"]:
+            self.assertNotIn(ai_tool, rendered)
 
     def test_generic_experience_does_not_claim_unmatched_jd_domain(self) -> None:
         profile = ResumeProfile(
@@ -404,7 +455,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertEqual(len(older_jd_tool_matches), 2)
 
         self.assertIn("seller analytics", older_text)
-        self.assertIn("inventory optimization", older_text)
+        self.assertTrue("inventory optimization" in older_text or "inventory analytics" in older_text)
         for cloud_tool in ["S3", "Glue", "EMR", "Redshift", "Kinesis", "MSK"]:
             self.assertIn(cloud_tool, older_text)
 

@@ -5,6 +5,7 @@ from pathlib import Path
 from textwrap import wrap
 from typing import Optional
 
+from utils.date_format import normalize_display_dates
 from utils.docx_exporter import build_docx
 from utils.schema import TailoredResume
 
@@ -88,7 +89,7 @@ def _resume_lines(resume: TailoredResume) -> list[dict[str, object]]:
 
     heading("Professional Experience")
     for exp in resume.experiences:
-        header = " | ".join(part for part in [exp.client_name, exp.title, exp.dates, exp.domain] if part)
+        header = " | ".join(part for part in [exp.client_name, exp.title, normalize_display_dates(exp.dates)] if part)
         if header:
             body(header, bold=True, size=SUBHEADING_FONT_SIZE)
         for item in exp.responsibilities:

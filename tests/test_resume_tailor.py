@@ -161,9 +161,10 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertIn("Certifications", rendered)
         self.assertIn("Education", rendered)
         self.assertIn(
-            "Oak Street Health | Senior Data Engineer | Jan 2024 - Present | Healthcare",
+            "Oak Street Health | Senior Data Engineer | January 2024 - Present",
             rendered,
         )
+        self.assertNotIn("Oak Street Health | Senior Data Engineer | January 2024 - Present | Healthcare", rendered)
         self.assertNotIn("Client: Oak Street Health", rendered)
         self.assertNotIn("PROFESSIONAL EXPERIENCE", rendered)
         self.assertNotIn("\nSenior Data Engineer | Jan 2024 - Present\n", rendered)
@@ -186,6 +187,23 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         tailored = tailor_resume(profile, jd, {"Oak Street Health": "AWS"})
 
         self.assertEqual(len(tailored.summary), 12)
+        for point in tailored.summary:
+            word_count = len(point.rstrip(".").split())
+            self.assertGreaterEqual(word_count, 29, point)
+            self.assertLessEqual(word_count, 32, point)
+            for forbidden in [
+                "tailored for",
+                "Strong match",
+                "ATS",
+                "resume domains",
+                "Client background",
+                "newer tools",
+                "client timeline",
+                "believable",
+                "keyword stuffing",
+                "unsupported",
+            ]:
+                self.assertNotIn(forbidden, point)
 
     def test_recent_client_gets_timeline_safe_ai_enablement(self) -> None:
         profile = ResumeProfile(
@@ -305,8 +323,18 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             "domain_alignment_score": 20.0,
             "tailoring_strategy": "adjacent_platform_alignment",
         }
+        moderate = {
+            "ats_match_percentage": 71.9,
+            "keyword_score": 66.0,
+            "cloud_alignment_score": 100.0,
+            "domain_alignment_score": 57.1,
+        }
 
         self.assertFalse(evaluate_resume_quality(weak)["passed"])
+        self.assertTrue(evaluate_resume_quality(weak)["download_allowed"])
+        self.assertTrue(evaluate_resume_quality(weak)["review_required"])
+        self.assertFalse(evaluate_resume_quality(moderate)["passed"])
+        self.assertTrue(evaluate_resume_quality(moderate)["download_allowed"])
         self.assertTrue(evaluate_resume_quality(strong)["passed"])
         self.assertTrue(evaluate_resume_quality(adjacent)["passed"])
 
@@ -412,7 +440,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         for blocked in ["Nokia", "Ericsson", "ASN.1", "CDR", "UDR", "OSS/BSS", "3GPP"]:
             self.assertNotIn(blocked, rendered)
         self.assertIn("streaming and platform engineering", " ".join(tailored.summary))
-        self.assertIn("telecom-style operational event workloads", " ".join(tailored.summary))
+        self.assertIn("high-volume event processing", " ".join(tailored.summary))
 
     def test_telecom_alignment_repair_does_not_inject_direct_mediation_claims(self) -> None:
         profile = ResumeProfile(

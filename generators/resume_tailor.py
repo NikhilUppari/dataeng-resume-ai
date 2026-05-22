@@ -17,6 +17,7 @@ from services.tailoring_strategy import (
     filter_blocked_claim_terms,
 )
 from services.timeline_validator import filter_timeline_safe, strip_timeline_unsafe_text
+from utils.date_format import normalize_display_dates as _normalize_display_dates
 from utils.schema import Experience, ResumeProfile, TailoredResume
 from utils.technology_terms import extract_known_technologies, is_known_technology
 from utils.text import clamp_words, dedupe_keep_order
@@ -42,7 +43,7 @@ BASELINE_DATA_STACK = ["Python", "SQL", "Spark", "Airflow", "Git", "data quality
 RESPONSIBILITY_COUNT_BY_CLIENT_ORDER = [27, 25, 23, 20, 10]
 SUMMARY_POINT_COUNT = 12
 BULLET_MIN_WORDS = 29
-BULLET_MAX_WORDS = 33
+BULLET_MAX_WORDS = 32
 BULLET_MIN_TECH_TERMS = 3
 BULLET_MAX_TECH_TERMS = 4
 BULLET_LENGTHENING_PHRASES = [
@@ -104,7 +105,7 @@ def render_resume_text(resume: TailoredResume) -> str:
     lines.append("\nProfessional Experience")
     for exp in resume.experiences:
         client_header = " | ".join(
-            part for part in [exp.client_name, exp.title, exp.dates, exp.domain] if part
+            part for part in [exp.client_name, exp.title, _normalize_display_dates(exp.dates)] if part
         )
         lines.append(f"\n{client_header}")
         for bullet in exp.responsibilities:
@@ -128,42 +129,42 @@ def _generate_summary(
     strategy: TailoringStrategy,
 ) -> List[str]:
     clouds = ", ".join(skills.get("Cloud Platforms", [])[:8])
-    domains = dedupe_keep_order([job_domain] + [exp.domain for exp in experiences])
-    domain_text = ", ".join(domains[:3]) if domains else "enterprise analytics"
-    domain_keywords = ", ".join(jd.domain_keywords[:6]) if jd.domain_keywords else domain_text
-    core_tools = ", ".join(_summary_tools(jd))
-    cloud_focus = ", ".join(dedupe_keep_order(jd.cloud_platforms + skills.get("Cloud Platforms", [])[:5])[:6])
+    cloud_focus_terms = dedupe_keep_order(jd.cloud_platforms + skills.get("Cloud Platforms", [])[:4])[:4]
+    core_tool_terms = [tool for tool in _summary_tools(jd)[:6] if tool.lower() not in {cloud.lower() for cloud in cloud_focus_terms}]
+    core_tools = ", ".join(core_tool_terms[:5])
+    cloud_focus = ", ".join(cloud_focus_terms)
+    platform_stack = ", ".join(part for part in [cloud_focus or clouds, core_tools or "Python, SQL, Spark"] if part)
     responsibility_focus = _summary_responsibility_focus(jd)
     seniority = jd.seniority_level or "Senior"
     genai = ", ".join(skills.get("AI/ML & GenAI", [])[:4])
     if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
         adjacent_tools = filter_blocked_claim_terms(dedupe_keep_order(strategy.adjacent_terms + _summary_tools(jd)), strategy)
-        adjacent = ", ".join(adjacent_tools[:8])
+        adjacent = ", ".join(adjacent_tools[:5])
         return _fit_summary_points([
-            f"{seniority} Data Engineer focused on distributed streaming and platform engineering, aligning {adjacent} experience to telecom-style operational event workloads.",
-            "Background spans enterprise data platforms across existing client domains, with transferable ownership of high-volume ingestion, event-driven processing, and production reliability.",
-            "Hands-on delivery includes Kafka/Flink-style streaming patterns, containerized deployments, observability, incident response, and throughput tuning without overstating direct mediation ownership.",
-            "Strong fit for teams needing scalable platform engineering, SRE discipline, and adaptable data processing patterns for carrier-grade workload expectations.",
+            f"{seniority} Data Engineer focused on distributed streaming and platform engineering for high-volume event processing with {adjacent}.",
+            "Builds reliable ingestion and processing services with practical ownership of throughput tuning, deployment checks, observability, and production recovery.",
+            "Applies Kafka and Flink-style design patterns to event-driven workloads while keeping delivery grounded in supported project experience.",
+            "Partners with platform and operations teams on containerized releases, alert triage, incident response, and measurable pipeline stability.",
         ], jd, skills, experiences, strategy)
     if strategy.name == ADJACENT_PLATFORM_ALIGNMENT:
-        adjacent = ", ".join(strategy.adjacent_terms[:8]) or core_tools
+        adjacent = ", ".join(strategy.adjacent_terms[:5]) or core_tools
         return _fit_summary_points([
-            f"{seniority} Data Engineer with experience across {domain_text}, applying {adjacent} to adjacent {strategy.job_domain} requirements without unsupported domain claims.",
-            "Background spans enterprise data platforms, high-volume ingestion, orchestration, data quality, and production reliability across existing client domains.",
-            f"Transferable fit includes {responsibility_focus}, maintainable pipelines, trusted datasets, and measurable reporting outcomes for analytics and operations teams.",
-            "Practical delivery style emphasizes truthful domain positioning, platform reliability, observability, and scalable data processing patterns.",
+            f"{seniority} Data Engineer building reliable data platforms with {adjacent}, production orchestration, data quality controls, and scalable cloud delivery.",
+            "Turns complex job requirements into maintainable pipelines, trusted datasets, deployment runbooks, and reporting layers that operations teams can use confidently.",
+            f"Experienced in {responsibility_focus}, translating stakeholder needs into tested ingestion, transformation, monitoring, and release practices.",
+            "Brings practical platform habits across capacity planning, partition strategy, incident response, and root-cause analysis for business-critical data workflows.",
         ], jd, skills, experiences, strategy)
     if strategy.name == LOW_ALIGNMENT:
         return _fit_summary_points([
-            f"{seniority} Data Engineer with experience across {domain_text}, focused on reliable data platforms, orchestration, data quality, and production support.",
-            "Current resume domains do not directly match the target JD domain, so this version avoids unsupported domain-specific ownership claims.",
-            f"Transferable strengths include {core_tools}, maintainable pipelines, governed datasets, monitoring, and operational reporting workflows.",
-            "Best positioned for roles where the client values adaptable data engineering experience over direct domain specialization.",
+            f"{seniority} Data Engineer focused on reliable data platforms, orchestration, data quality, SQL optimization, and production support.",
+            f"Works with {core_tools or 'Python, SQL, Spark'} to build maintainable pipelines, governed datasets, monitoring routines, and operational reporting workflows.",
+            f"Experienced in {responsibility_focus}, using structured delivery practices to reduce defects and support timely analytics consumption.",
+            "Comfortable moving between legacy ingestion, cloud data services, file distribution, and stakeholder reporting with clear ownership of production outcomes.",
         ], jd, skills, experiences, strategy)
     return _fit_summary_points([
-        f"{seniority} Data Engineer tailored for {domain_text} roles, using {cloud_focus or clouds} with {core_tools} to deliver JD-aligned data platforms and analytics products.",
-        f"Strong match for {domain_keywords} requirements, with hands-on delivery across orchestration, data warehousing, streaming ingestion, governance, and data quality controls.",
-        f"Experienced with {responsibility_focus}, translating job-specific business needs into maintainable pipelines, trusted datasets, and measurable reporting outcomes.",
+        f"{seniority} Data Engineer building cloud data platforms with {platform_stack} and production-focused delivery practices for analytics and operations teams.",
+        "Hands-on engineering spans orchestration, data warehousing, streaming ingestion, governance, SQL tuning, and reusable data quality controls.",
+        f"Experienced with {responsibility_focus}, translating business needs into maintainable pipelines, trusted datasets, and measurable reporting outcomes.",
         f"Practical exposure to AI/ML data enablement using {genai} where relevant, while keeping solutions production-focused, compliant, observable, and easy for analytics teams to consume.",
     ], jd, skills, experiences, strategy)
 
@@ -179,35 +180,34 @@ def _fit_summary_points(
     clouds = ", ".join(skills.get("Cloud Platforms", [])[:4]) or "cloud data platforms"
     summary_tools = filter_blocked_claim_terms(_summary_tools(jd), strategy)
     data_tools = ", ".join(summary_tools[:5]) or "Python, SQL, Spark"
-    domains = ", ".join(dedupe_keep_order(exp.domain for exp in experiences if exp.domain)[:3]) or "enterprise data engineering"
     recent_ai = ", ".join(_recent_ai_tools(experiences[0].selected_cloud if experiences else "AWS", experiences[0].dates if experiences else "")[:2])
     if recent_ai:
         recent_ai_phrase = recent_ai
     else:
         recent_ai_phrase = "MLflow and governed feature datasets"
     support_points = [
-        f"Recent delivery emphasizes {clouds}, production orchestration, and clear ownership of batch and streaming data workflows.",
+        f"Recent delivery emphasizes {clouds}, production orchestration, and clear ownership of batch and streaming data workflows for analytics and operations teams.",
         f"Core engineering strengths include {data_tools}, data modeling, SQL optimization, monitoring, and controlled release practices.",
-        f"Client background spans {domains}, with domain language kept truthful to the actual project history.",
-        "Builds data products with practical observability, alerting, runbooks, and root-cause analysis rather than one-off pipeline scripts.",
+        "Builds data products with practical observability, alerting, runbooks, and root-cause analysis for steady production support.",
         "Uses AI and ML tooling selectively in recent work, including " + recent_ai_phrase + ", for metadata review, feature readiness, and data quality acceleration.",
-        "Balances ATS alignment with believable project language, avoiding unsupported domain ownership or obvious keyword stuffing.",
-        "Comfortable modernizing legacy ingestion paths, file movement, SFTP handoffs, object storage layouts, and downstream consumption patterns.",
-        "Focuses on maintainable data engineering services, reusable orchestration, validation checks, and stakeholder-ready datasets.",
-        "Keeps tool placement timeline-aware so newer services appear only where the client period can support them.",
-        "Writes production-minded solutions with capacity review, partition strategy, retry handling, and incident response in mind.",
+        "Modernizes legacy ingestion paths, file movement, SFTP handoffs, object storage layouts, and downstream consumption patterns.",
+        "Creates maintainable data engineering services with reusable orchestration, validation checks, version control, and stakeholder-ready datasets.",
+        "Applies the right platform services for each engagement, balancing job requirements with production readiness, team adoption, and long-term maintainability.",
+        "Writes production-minded solutions with capacity review, partition strategy, retry handling, controlled releases, and incident response in mind.",
         "Works across analytics, platform, and operations partners to translate business needs into stable technical delivery.",
-        "Best positioned for teams needing strong data engineering execution with measured platform and AI enablement.",
+        "Improves pipeline reliability through schema controls, reconciliation checks, idempotent processing, and clear escalation paths.",
+        "Supports warehouse, lakehouse, and streaming patterns with performance tuning, security controls, and practical documentation.",
+        "Communicates tradeoffs clearly with engineers, analysts, and product partners so releases stay understandable after handoff.",
     ]
     for point in support_points:
         if len(points) >= SUMMARY_POINT_COUNT:
             break
         points.append(point)
-    return points[:SUMMARY_POINT_COUNT]
+    return [_fit_summary_word_range(point, index) for index, point in enumerate(points[:SUMMARY_POINT_COUNT])]
 
 
 def _summary_tools(jd: JobAnalysis) -> List[str]:
-    tools = dedupe_keep_order(
+    raw_tools = dedupe_keep_order(
         jd.required_skills
         + jd.data_tools
         + jd.etl_tools
@@ -216,7 +216,8 @@ def _summary_tools(jd: JobAnalysis) -> List[str]:
         + jd.orchestration_tools
         + ["Python", "SQL", "Spark"]
     )
-    return tools[:10]
+    canonical_tools = extract_known_technologies(" ".join(raw_tools))
+    return dedupe_keep_order(canonical_tools + raw_tools)[:10]
 
 
 def _summary_responsibility_focus(jd: JobAnalysis) -> str:
@@ -224,11 +225,69 @@ def _summary_responsibility_focus(jd: JobAnalysis) -> str:
     for term in terms:
         words = term.split()
         if 3 <= len(words) <= 14:
-            return term.rstrip(".")
+            return _normalize_responsibility_phrase(term.rstrip("."))
     fallback = dedupe_keep_order(jd.data_tools + jd.etl_tools + jd.databases + jd.streaming_tools)
     if fallback:
         return "building " + ", ".join(fallback[:5]) + " solutions"
     return "building batch and streaming data products"
+
+
+def _normalize_responsibility_phrase(value: str) -> str:
+    phrase = value.strip()
+    replacements = {
+        "build ": "building ",
+        "develop ": "developing ",
+        "design ": "designing ",
+        "create ": "creating ",
+        "implement ": "implementing ",
+    }
+    lower = phrase.lower()
+    for prefix, replacement in replacements.items():
+        if lower.startswith(prefix):
+            return replacement + phrase[len(prefix) :]
+    return phrase[:1].lower() + phrase[1:]
+
+
+SUMMARY_LENGTHENING_PHRASES = [
+    "with monitoring, validation, documentation, recovery notes, and support context built into delivery routines",
+    "while keeping release notes, recovery steps, performance tuning, and ownership clear",
+    "for stable production operations, cleaner stakeholder reporting, and practical support ownership",
+    "with practical controls for deployment, review, incident response, and recovery",
+    "while keeping performance tuning, data validation, and documentation easy to maintain",
+    "with durable handoffs across engineering, analytics, platform, and operations teams",
+    "with clear release support context",
+    "with practical production context",
+    "through support review",
+]
+
+
+def _fit_summary_word_range(text: str, phrase_offset: int = 0) -> str:
+    sentence = text.strip().rstrip(".")
+    phrase_index = phrase_offset
+    while len(sentence.split()) < BULLET_MIN_WORDS:
+        current_count = len(sentence.split())
+        needed = BULLET_MIN_WORDS - current_count
+        remaining = BULLET_MAX_WORDS - current_count
+        phrase = _select_summary_extension(needed, remaining, phrase_index)
+        sentence = f"{sentence}, {phrase}"
+        phrase_index += 1
+
+    tokens = sentence.split()
+    if len(tokens) > BULLET_MAX_WORDS:
+        tokens = tokens[:BULLET_MAX_WORDS]
+    return " ".join(tokens).rstrip(",;") + "."
+
+
+def _select_summary_extension(needed: int, remaining: int, phrase_offset: int) -> str:
+    rotated = SUMMARY_LENGTHENING_PHRASES[phrase_offset % len(SUMMARY_LENGTHENING_PHRASES) :] + SUMMARY_LENGTHENING_PHRASES[: phrase_offset % len(SUMMARY_LENGTHENING_PHRASES)]
+    for phrase in rotated:
+        count = len(phrase.split())
+        if needed <= count <= remaining:
+            return phrase
+    for phrase in rotated:
+        if len(phrase.split()) <= remaining:
+            return phrase
+    return "through support review"
 
 
 def _tailor_experiences(
@@ -428,12 +487,33 @@ def _terms_for_experience_domain(
     tailor_to_jd: bool,
     strategy: TailoringStrategy,
 ) -> List[str]:
-    terms = keywords_for_domain(exp_domain)
+    terms = _resume_safe_domain_terms(exp_domain)
     if strategy.name == ADJACENT_PLATFORM_ALIGNMENT:
         return dedupe_keep_order(terms)
     if tailor_to_jd and same_domain(exp_domain, job_domain):
-        terms = jd.domain_keywords + terms
+        terms = _resume_safe_jd_domain_terms(jd.domain_keywords, exp_domain) + terms
     return dedupe_keep_order(terms)
+
+
+def _resume_safe_domain_terms(domain: str) -> List[str]:
+    if same_domain(domain, "Financial Services / Banking / Wealth Management / Asset Servicing"):
+        return ["financial services", "risk reporting", "transaction data", "audit reporting", "reconciliation"]
+    if same_domain(domain, "Healthcare"):
+        return ["healthcare data", "claims data", "clinical reporting", "provider analytics", "pharmacy data"]
+    if same_domain(domain, "Retail / E-commerce"):
+        return ["retail data", "order pipelines", "inventory analytics", "seller analytics", "customer analytics"]
+    if same_domain(domain, "Aviation"):
+        return ["aviation data", "flight operations", "crew scheduling", "maintenance analytics", "passenger analytics"]
+    if same_domain(domain, "Travel / Online Travel Platform"):
+        return ["travel data", "booking analytics", "itinerary data", "pricing trends", "customer segmentation"]
+    return keywords_for_domain(domain)
+
+
+def _resume_safe_jd_domain_terms(terms: List[str], exp_domain: str) -> List[str]:
+    blocked = []
+    if same_domain(exp_domain, "Financial Services / Banking / Wealth Management / Asset Servicing"):
+        blocked = ["banking", "wealth management", "asset servicing"]
+    return [term for term in terms if term and term.lower() not in blocked]
 
 
 def _tools_for_experience(exp: Experience, jd: JobAnalysis, tailor_to_jd: bool, exp_index: int, strategy: TailoringStrategy) -> List[str]:
@@ -621,7 +701,7 @@ def _focus_library(domain: str) -> List[Dict[str, str]]:
         return [
             {"focus": "risk reporting", "data_asset": "risk analytics marts", "stakeholder": "risk management", "control": "SOX reconciliation", "outcome": "regulatory reporting trust"},
             {"focus": "fraud monitoring", "data_asset": "transaction processing feeds", "stakeholder": "fraud operations", "control": "AML exception", "outcome": "fraud detection coverage"},
-            {"focus": "client holdings", "data_asset": "wealth management datasets", "stakeholder": "asset servicing", "control": "KYC validation", "outcome": "advisor reporting accuracy"},
+            {"focus": "client reporting", "data_asset": "financial services datasets", "stakeholder": "operations", "control": "KYC validation", "outcome": "reporting accuracy"},
             {"focus": "audit modernization", "data_asset": "audit controls evidence", "stakeholder": "compliance", "control": "PCI-DSS lineage", "outcome": "audit readiness"},
         ]
     if same_domain(domain, "Retail / E-commerce"):
@@ -695,17 +775,31 @@ def _add_repair_terms_to_skills(
     responsibility_terms: List[str],
 ) -> None:
     if tool_terms:
-        resume.technical_skills["Additional ATS Keywords"] = dedupe_keep_order(
-            resume.technical_skills.get("Additional ATS Keywords", []) + tool_terms
-        )[:40]
-    if domain_terms:
-        resume.technical_skills["Domain & Business Context"] = dedupe_keep_order(
-            resume.technical_skills.get("Domain & Business Context", []) + domain_terms
-        )[:24]
-    if responsibility_terms:
-        resume.technical_skills["Data Engineering Practices"] = dedupe_keep_order(
-            resume.technical_skills.get("Data Engineering Practices", []) + responsibility_terms
-        )[:24]
+        _add_tools_to_existing_skill_categories(resume, tool_terms)
+
+
+def _add_tools_to_existing_skill_categories(resume: TailoredResume, tool_terms: List[str]) -> None:
+    category_rules = [
+        ("Cloud Platforms", ["AWS", "Azure", "GCP", "Redshift", "BigQuery", "Synapse"]),
+        ("Big Data Technologies", ["Spark", "PySpark", "Databricks", "Delta Lake", "Hadoop", "Hive", "dbt"]),
+        ("Data Engineering & ETL", ["Glue", "Airflow", "ADF", "Dataflow", "Informatica", "Talend", "SSIS"]),
+        ("Databases", ["Snowflake", "Oracle", "SQL Server", "PostgreSQL", "MySQL", "DynamoDB", "MongoDB"]),
+        ("Streaming & Messaging", ["Kafka", "Kinesis", "Flink", "Pub/Sub", "Event Hub", "MSK"]),
+        ("Programming Languages", ["Python", "SQL", "Java", "Golang", "Go", "Scala", "PL/SQL"]),
+        ("DevOps & CI/CD", ["Docker", "Kubernetes", "OpenShift", "Helm", "Terraform", "Jenkins", "CI/CD"]),
+        ("Monitoring & Observability", ["CloudWatch", "Prometheus", "Grafana", "OpenTelemetry", "Jaeger", "ELK", "EFK"]),
+    ]
+    for term in tool_terms:
+        placed = False
+        for category, markers in category_rules:
+            if any(marker.lower() in term.lower() for marker in markers):
+                resume.technical_skills[category] = dedupe_keep_order(resume.technical_skills.get(category, []) + [term])[:16]
+                placed = True
+                break
+        if not placed:
+            resume.technical_skills["Data Engineering & ETL"] = dedupe_keep_order(
+                resume.technical_skills.get("Data Engineering & ETL", []) + [term]
+            )[:16]
 
 
 def _add_repair_terms_to_recent_experiences(
@@ -732,12 +826,15 @@ def _add_repair_terms_to_recent_experiences(
 
 
 def _add_repair_terms_to_summary(resume: TailoredResume, tool_terms: List[str], domain_terms: List[str]) -> None:
-    terms = dedupe_keep_order(tool_terms[:6] + domain_terms[:6])
+    terms = dedupe_keep_order(tool_terms[:4] + domain_terms[:2])
     if not terms:
         return
-    phrase = f" Targeted alignment includes {', '.join(terms)}."
     if resume.summary:
-        resume.summary[1 if len(resume.summary) > 1 else 0] = resume.summary[1 if len(resume.summary) > 1 else 0].rstrip(".") + phrase
+        index = 1 if len(resume.summary) > 1 else 0
+        resume.summary[index] = _fit_summary_word_range(
+            resume.summary[index].rstrip(".") + f", using {', '.join(terms)} where they support pipeline design and production delivery",
+            index,
+        )
 
 
 def _append_alignment_phrase(sentence: str, terms: List[str]) -> str:

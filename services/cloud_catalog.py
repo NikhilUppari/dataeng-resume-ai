@@ -141,4 +141,10 @@ def cloud_timeline_blocklist(year_hint: int) -> List[str]:
         blocked.append("Fabric")
     if year_hint < 2021:
         blocked.extend(["Lake Formation", "Vertex AI"])
+    if year_hint < 2018:
+        blocked.extend(["Astronomer", "MSK", "EKS", "AKS", "GKE"])
+    if year_hint < 2017:
+        blocked.extend(["Glue", "AWS Glue"])
+    if year_hint < 2016:
+        blocked.extend(["Athena", "Step Functions", "dbt"])
     return blocked

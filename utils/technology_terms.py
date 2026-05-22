@@ -70,6 +70,7 @@ EXTRA_TECH_TERMS = {
     "Apache Airflow",
     "Apache Kafka",
     "Apache Spark",
+    "Astronomer",
     "Azure DevOps",
     "Bicep",
     "CDC",

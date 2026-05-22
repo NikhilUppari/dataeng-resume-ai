@@ -16,6 +16,11 @@ class TimelineValidatorTests(unittest.TestCase):
         self.assertEqual(filter_timeline_safe(tools, "Jan 2024 - Present"), tools)
         self.assertEqual(filter_timeline_safe(tools, "Jan 2020 - Dec 2020"), ["SageMaker", "Spark"])
 
+    def test_platform_tools_are_filtered_before_release_period(self) -> None:
+        tools = ["Astronomer", "AWS Glue", "Glue", "Athena", "Step Functions", "dbt", "Spark"]
+
+        self.assertEqual(filter_timeline_safe(tools, "Jan 2014 - Dec 2014"), ["Spark"])
+
 
 if __name__ == "__main__":
     unittest.main()

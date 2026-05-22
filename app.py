@@ -91,7 +91,7 @@ def main() -> None:
             st.session_state["resume_quality"] = quality
             st.session_state["alignment_attempts"] = attempts
             st.session_state["resume_text"] = render_resume_text(tailored)
-            if quality["passed"]:
+            if quality.get("download_allowed"):
                 log_status("Building DOCX now. The resume has earned paperwork privileges.")
                 st.session_state["docx_bytes"] = build_docx(tailored)
                 log_status("Building PDF export too. Local converters get first try, then the built-in fallback takes over.")
@@ -237,6 +237,7 @@ def _results_panel() -> None:
 
     ats = tailored.ats_score
     quality = st.session_state.get("resume_quality") or evaluate_resume_quality(ats)
+    download_allowed = bool(quality.get("download_allowed", quality.get("passed")))
     attempts = st.session_state.get("alignment_attempts", 1)
     score_cols = st.columns(3)
     score_cols[0].metric("ATS match", f"{ats['ats_match_percentage']}%")
@@ -254,7 +255,10 @@ def _results_panel() -> None:
         else:
             st.success(f"Resume passed the JD alignment gate after {attempts} attempt(s). Downloads are enabled.")
     else:
-        st.error(f"Resume did not pass the JD alignment gate after {attempts} attempt(s). Downloads are disabled until gaps are fixed.")
+        if download_allowed:
+            st.warning(f"Resume generated with alignment warnings after {attempts} attempt(s). Downloads are enabled for review, but check the gaps before applying.")
+        else:
+            st.error(f"Resume did not pass the JD alignment gate after {attempts} attempt(s). Downloads are disabled until major gaps are fixed.")
         for failure in quality.get("failures", []):
             st.write(f"- {failure}")
 
@@ -262,7 +266,7 @@ def _results_panel() -> None:
 
     st.subheader("Downloads")
     pdf_bytes = st.session_state.get("pdf_bytes")
-    if quality["passed"] and pdf_bytes is None:
+    if download_allowed and pdf_bytes is None:
         with st.spinner("Preparing PDF export..."):
             pdf_bytes = build_pdf(tailored)
             st.session_state["pdf_bytes"] = pdf_bytes
@@ -273,7 +277,7 @@ def _results_panel() -> None:
         data=st.session_state.get("docx_bytes", b""),
         file_name="tailored_data_engineer_resume.docx",
         mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        disabled=not quality["passed"],
+        disabled=not download_allowed,
         use_container_width=True,
     )
     download_cols[1].download_button(
@@ -281,10 +285,10 @@ def _results_panel() -> None:
         data=pdf_bytes or b"",
         file_name="tailored_data_engineer_resume.pdf",
         mime="application/pdf",
-        disabled=(not quality["passed"]) or pdf_bytes is None,
+        disabled=(not download_allowed) or pdf_bytes is None,
         use_container_width=True,
     )
-    if quality["passed"] and pdf_bytes is None:
+    if download_allowed and pdf_bytes is None:
         st.caption("PDF export could not finish. DOCX is still available.")
 
     st.subheader("Resume preview")

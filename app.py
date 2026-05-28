@@ -19,7 +19,7 @@ from utils.schema import JobAnalysis, ResumeProfile
 
 
 APP_DIR = Path(__file__).resolve().parent
-MODELS = ["llama3.1", "qwen2.5", "mistral", "deepseek-r1"]
+MODELS = ["qwen3:8b", "llama3.1", "qwen2.5", "mistral", "deepseek-r1"]
 CLOUDS = ["AWS", "Azure", "GCP"]
 PARSER_CACHE_VERSION = "known-client-v3"
 MAX_ALIGNMENT_ATTEMPTS = 3

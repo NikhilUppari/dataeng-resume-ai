@@ -193,6 +193,9 @@ def _generate_quality_checked_resume(
 ):
     latest_quality = {}
     latest_tailored = None
+    best_quality = {}
+    best_tailored = None
+    best_rank = (-1.0, -1.0, -1.0, -1.0)
     _log(log_status, "Lining up clients, domains, selected clouds, and the recent-three tailoring rule.")
     for index, exp in enumerate(profile.experiences, start=1):
         mode = "full JD tailoring" if index <= 3 else "half JD tools plus domain-safe cloud depth"
@@ -211,6 +214,16 @@ def _generate_quality_checked_resume(
         latest_tailored = tailored
         latest_quality = quality
         ats = tailored.ats_score
+        rank = (
+            float(ats.get("ats_match_percentage", 0.0)),
+            float(ats.get("keyword_score", 0.0)),
+            float(ats.get("domain_alignment_score", 0.0)),
+            float(ats.get("cloud_alignment_score", 0.0)),
+        )
+        if rank > best_rank:
+            best_rank = rank
+            best_tailored = tailored
+            best_quality = quality
         _log(
             log_status,
             (
@@ -219,13 +232,13 @@ def _generate_quality_checked_resume(
             ),
         )
         if quality["passed"]:
-            _log(log_status, f"Finallllyyyyyy resume is ready after {attempt_index + 1} attempt(s). Downloads unlocked.")
+            _log(log_status, f"Resume passed the alignment checks after {attempt_index + 1} attempt(s). Downloads are enabled.")
             return tailored, quality, attempt_index + 1
         for failure in quality.get("failures", []):
             _log(log_status, f"Gate says nope: {failure}")
-        _log(log_status, "Repair pass coming up. Time to patch the gaps without keyword stuffing.")
-    _log(log_status, "I tried every alignment pass. This one still needs human review before downloads.")
-    return latest_tailored, latest_quality, MAX_ALIGNMENT_ATTEMPTS
+        _log(log_status, "Trying one more alignment pass while preserving the strongest draft.")
+    _log(log_status, "Alignment checks still show review items after the available passes. The best draft remains available for review.")
+    return best_tailored or latest_tailored, best_quality or latest_quality, MAX_ALIGNMENT_ATTEMPTS
 
 
 def _results_panel() -> None:

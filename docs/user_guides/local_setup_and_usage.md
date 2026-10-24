@@ -56,7 +56,7 @@ Generated output formats:
 The DOCX output is generated with a compact ATS-friendly layout:
 
 - Body text uses Calibri 10pt.
-- Section headings use Camel Case, Calibri 12pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
+- Section headings use Camel Case, Calibri 14pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
 - Client names and subheadings use Calibri 10pt.
 - Personal header/contact details are preserved at the beginning of the generated resume.
 - Education remains at the bottom; the Education heading uses Calibri 14pt and education details use Calibri 10pt.

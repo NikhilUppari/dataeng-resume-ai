@@ -17,7 +17,7 @@ The app runs on your laptop with Streamlit and Ollama. It parses a DOCX or PDF r
 - Personal header/contact details preserved at the beginning of generated resumes
 - Format-controlled client responsibilities with target counts by experience order and compact 29-33 word bullets
 - ATS analysis panel with match score, matched keywords, missing keywords, missing tools, cloud score, domain score, and suggestions
-- ATS-friendly DOCX export through `python-docx` with Calibri 10pt body text, 12pt Camel Case section headings, thin heading borders, and compact capped technical skills lines
+- ATS-friendly DOCX export through `python-docx` with Calibri 10pt body text, 14pt Camel Case section headings, thin heading borders, and compact capped technical skills lines
 - PDF export through `docx2pdf` on Windows or `pypandoc` when configured, with a built-in fallback PDF writer
 - Optional local Ollama enrichment with `llama3.1`, `qwen2.5`, `mistral`, or `deepseek-r1`
 - Deterministic fallback generation when Ollama is not running
@@ -111,7 +111,7 @@ The app preserves client names, dates, experience order, and section intent. DOC
 Current DOCX formatting rules:
 
 - Body text uses Calibri 10pt.
-- Section headings use Camel Case, Calibri 12pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
+- Section headings use Camel Case, Calibri 14pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
 - Client names and subheadings use Calibri 10pt.
 - Education stays at the bottom; the Education heading uses Calibri 14pt and education details use Calibri 10pt.
 - Technical skills render as compact category lines, such as `Cloud Platforms: AWS, Azure, S3, Glue, Redshift`.

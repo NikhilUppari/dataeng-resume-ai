@@ -170,7 +170,7 @@ def _fit_summary_points(
     clouds = ", ".join(skills.get("Cloud Platforms", [])[:4]) or "cloud data platforms"
     summary_tools = filter_blocked_claim_terms(_summary_tools(jd), strategy)
     data_tools = ", ".join(summary_tools[:5]) or "Python, SQL, Spark"
-    recent_ai = ", ".join(_recent_ai_tools(experiences[0].selected_cloud if experiences else "AWS", experiences[0].dates if experiences else "", jd)[:2])
+    recent_ai = ", ".join(_recent_ai_tools(experiences[0].selected_cloud if experiences else "AWS", experiences[0].dates if experiences else "", jd, experience_index=0)[:2])
     support_points = [
         f"Recent delivery emphasizes {clouds}, production orchestration, and clear ownership of batch and streaming data workflows for analytics and operations teams.",
         f"Core engineering strengths include {data_tools}, data modeling, SQL optimization, monitoring, and controlled release practices.",
@@ -294,7 +294,7 @@ def _tailor_experiences(
         selected_cloud = cloud_by_client.get(exp.client_name, exp.selected_cloud or "AWS")
         cloud_context_terms = jd_terms if tailor_to_jd else []
         cloud_tools = filter_timeline_safe(expand_cloud_services(selected_cloud, cloud_context_terms, jd.seniority_level), exp.dates)
-        recent_ai_tools = _recent_ai_tools(selected_cloud, exp.dates, jd) if index == 0 else []
+        recent_ai_tools = _recent_ai_tools(selected_cloud, exp.dates, jd, experience_index=index) if index < 2 else []
         active_domain = _resolve_experience_domain(exp.domain, job_domain, strategy)
         domain_terms = _terms_for_experience_domain(active_domain, jd, job_domain, tailor_to_jd, strategy)
         bullet_count = _responsibility_count_for_client(index)
@@ -382,11 +382,12 @@ def _responsibility_count_for_client(index: int) -> int:
     return RESPONSIBILITY_COUNT_BY_CLIENT_ORDER[-1]
 
 
-def _recent_ai_tools(cloud: str, dates: str, jd: JobAnalysis) -> List[str]:
-    if not _jd_has_ai_focus(jd):
-        return []
+def _recent_ai_tools(cloud: str, dates: str, jd: JobAnalysis, *, experience_index: int) -> List[str]:
     tools = RECENT_AI_TOOLS_BY_CLOUD.get(cloud, RECENT_AI_TOOLS_BY_CLOUD["AWS"])
-    return filter_timeline_safe(tools, dates)[:3]
+    safe_tools = filter_timeline_safe(tools, dates)
+    if _jd_has_ai_focus(jd):
+        return safe_tools[:3]
+    return safe_tools[:1] if experience_index == 0 else []
 
 
 def _jd_has_ai_focus(jd: JobAnalysis) -> bool:

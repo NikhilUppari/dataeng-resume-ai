@@ -15,7 +15,7 @@ from utils.technology_terms import is_known_technology, iter_tool_matches
 
 BODY_FONT_NAME = "Calibri"
 BODY_FONT_SIZE = Pt(10)
-HEADING_FONT_SIZE = Pt(12)
+HEADING_FONT_SIZE = Pt(14)
 EDUCATION_HEADING_FONT_SIZE = Pt(14)
 SUBHEADING_FONT_SIZE = Pt(10)
 SECTION_HEADING_BORDER_COLOR = "808080"

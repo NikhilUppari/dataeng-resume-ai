@@ -333,7 +333,6 @@ def _generate_bullets(
             tool1=selected_tools[0],
             tool2=selected_tools[1],
             tool3=selected_tools[2],
-            metric=_metric_for(idx, exp_index),
         )
         text = _fit_responsibility_word_range(strip_timeline_unsafe_text(text, exp.dates), idx)
         bullets.append(text)
@@ -387,7 +386,7 @@ def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStra
     if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
         return [
             "Built high-volume event ingestion for {data_asset} with {tool1} and {tool2}, improving recovery behavior for {stakeholder} teams.",
-            "Tuned partition strategy and retry handling in {tool1} workflows, reducing delayed operational loads by {metric}.",
+            "Tuned partition strategy and retry handling in {tool1} workflows, reducing delayed operational loads during peak processing windows.",
             "Improved observability for {focus} services with {tool1}, giving support teams clearer failure context during incident triage.",
             "Packaged deployment checks for {tool1} services on {cloud}, making release validation more repeatable across platform environments.",
             "Refined file distribution paths for {data_asset} using {tool1} and {tool2}, improving reconciliation and downstream handoff accuracy.",
@@ -395,7 +394,7 @@ def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStra
     if focus == "spark_platform":
         return [
             "Reduced Spark job runtime for {data_asset} by tuning partition sizing and caching frequently accessed datasets in {tool1}.",
-            "Optimized Delta-style merge patterns in {tool1} to improve ingestion reliability for {focus} workloads by {metric}.",
+            "Optimized Delta-style merge patterns in {tool1} to improve ingestion reliability for {focus} workloads.",
             "Reviewed failed {tool1} stages with Spark UI patterns, then adjusted shuffle-heavy transformations to reduce repeated incident review.",
             "Added {control} checks around {domain} datasets using {tool1} and {tool2}, improving trust in daily refresh results.",
             "Built reusable validation notebooks in {tool1} so {stakeholder} teams could investigate data issues without waiting on engineers.",
@@ -407,7 +406,7 @@ def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStra
         return [
             "Built Airflow DAG retry handling for {focus} pipelines, improving SLA recovery when upstream loads arrived late.",
             "Refactored scheduling dependencies in {tool1} so nightly {data_asset} refreshes failed fast with clearer alert context.",
-            "Added task-level monitoring and backfill controls in {tool1}, reducing repeated support escalations by {metric}.",
+            "Added task-level monitoring and backfill controls in {tool1}, reducing repeated support escalations during scheduled refreshes.",
             "Standardized deployment checks for {tool1} DAG changes, helping release teams catch schedule and dependency issues earlier.",
             "Documented operational runbooks for {focus} failures, giving analysts clearer expectations during data delay incidents.",
         ]
@@ -415,7 +414,7 @@ def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStra
         return [
             "Improved SQL query performance for {data_asset} by pruning joins, indexing lookup paths, and simplifying transformation logic.",
             "Built dimensional models in {tool1} that made {focus} reporting easier to reconcile and maintain.",
-            "Created reconciliation checks between source extracts and {tool1} tables, reducing reporting defects by {metric}.",
+            "Created reconciliation checks between source extracts and {tool1} tables, catching reporting defects before downstream delivery.",
             "Tuned incremental load patterns with {tool1} and {tool2}, lowering warehouse refresh time during month-end processing.",
             "Partnered with {stakeholder} users to clarify metric definitions before moving logic into governed reporting tables.",
         ]
@@ -438,7 +437,7 @@ def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStra
     if focus == "streaming":
         return [
             "Built event-driven ingestion with {tool1}, improving freshness for {data_asset} consumed by {stakeholder} teams.",
-            "Tuned consumer retry behavior and partition usage in {tool1}, reducing delayed message processing by {metric}.",
+            "Tuned consumer retry behavior and partition usage in {tool1}, reducing delayed message processing during source bursts.",
             "Added schema validation around streaming feeds so downstream transformations failed with clearer diagnostics.",
             "Balanced batch and streaming paths for {focus} workloads, keeping recovery practical during source system delays.",
             "Improved operational dashboards for {tool1} jobs so support teams could spot lag and failure patterns sooner.",
@@ -446,7 +445,7 @@ def _bullet_templates_for_focus(focus: str, domain: str, strategy: TailoringStra
     return [
         "Built reliable ingestion pipelines for {data_asset} using {tool1} and {tool2}, improving {outcome} for {stakeholder} teams.",
         "Resolved recurring production failures in {focus} workflows by improving retry handling, validation checks, and alert context.",
-        "Optimized SQL and transformation logic for {data_asset}, reducing refresh delays by {metric}.",
+        "Optimized SQL and transformation logic for {data_asset}, reducing refresh delays during scheduled processing.",
         "Created data quality checks around {domain} datasets so reporting users could trust daily output.",
         "Partnered with {stakeholder} users to clarify requirements before promoting pipeline changes into production.",
     ]
@@ -479,19 +478,6 @@ def _select_bullet_tools(tools: List[str], cloud: str, offset: int, focus: str) 
     while len(selected) < BULLET_MAX_TECH_TERMS:
         selected.append(selected[-1] if selected else "SQL")
     return selected
-
-
-def _metric_for(index: int, exp_index: int) -> str:
-    metrics = [
-        "35%",
-        "28%",
-        "40%",
-        "30%",
-        "45%",
-        "25%",
-        "50%",
-    ]
-    return metrics[(index + exp_index) % len(metrics)]
 
 
 def _blend_recent_ai_bullets(

@@ -64,7 +64,8 @@ The DOCX output is generated with a compact ATS-friendly layout:
 - Technical skills are capped by category to keep the section concise and avoid keyword stuffing.
 - Each client header is kept on one line when data is available: `Client Name | Role | Dates | Domain`.
 - Client responsibility counts target 27 points for the current client, then 25, 23, 20, and 10 for older clients.
-- Responsibility bullets target 29-33 words and bold known technical tools, skills, and platforms when they appear in the bullet.
+- Responsibility bullets are kept concise, capped at 34 words, and written without filler phrases added only to meet a word count.
+- For non-AI JDs, limited AI tooling may appear only in the most recent client experience. AI-focused JDs can use more AI tooling across the two most recent clients, subject to timeline validation.
 - Bullets use tight spacing to keep long experience sections readable without adding unnecessary pages.
 
 ## Truthful Domain Tailoring

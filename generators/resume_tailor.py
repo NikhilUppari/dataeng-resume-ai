@@ -205,7 +205,7 @@ def _summary_tools(jd: JobAnalysis) -> List[str]:
         + ["Python", "SQL", "Spark"]
     )
     canonical_tools = extract_known_technologies(" ".join(raw_tools))
-    return dedupe_keep_order(canonical_tools + raw_tools)[:10]
+    return dedupe_keep_order(raw_tools + canonical_tools)[:10]
 
 
 def _summary_responsibility_focus(jd: JobAnalysis) -> str:
@@ -660,82 +660,6 @@ def _fit_responsibility_word_range(text: str, phrase_offset: int = 0) -> str:
     clipped = " ".join(tokens[:BULLET_MAX_WORDS])
     clipped = clipped.rsplit(",", 1)[0] if "," in clipped[-24:] else clipped
     return clipped.rstrip(",;") + "."
-
-
-def _patterns_for_strategy(domain: str, strategy: TailoringStrategy) -> List[str]:
-    if strategy.name == ADJACENT_PLATFORM_ALIGNMENT and same_domain(strategy.job_domain, TELECOM_DOMAIN):
-        return [
-            "{verb} high-volume event ingestion for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving throughput and recovery for {stakeholder} teams.",
-            "{verb} distributed streaming workflows with {tool1}, {tool2}, and {tool3}, tuning partition strategy, retry handling, and back-pressure controls for operational workloads.",
-            "{verb} platform services around {data_asset} using {tool1} and {tool2}, improving async processing, file movement, and downstream handoff for {stakeholder} users.",
-            "{verb} observability and incident workflows across {tool1}, {tool2}, and {tool3}, strengthening SLO tracking, alert triage, and root-cause analysis.",
-            "{verb} containerized deployment patterns using {tool1}, {tool2}, and {tool3}, supporting repeatable releases, capacity reviews, and production support handoffs.",
-            "{verb} file ingestion and distribution paths with {tool1}, {tool2}, and SQL, improving partition pruning, validation checks, and controlled data delivery.",
-            "{verb} batch and streaming reliability patterns with {tool1}, {tool2}, and {tool3}, helping teams operate fresher event data with safer rollback options.",
-        ]
-    return _patterns_for_domain(domain)
-
-
-def _patterns_for_domain(domain: str) -> List[str]:
-    if same_domain(domain, "Healthcare"):
-        return [
-            "{verb} {focus} pipelines for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving {outcome} for {stakeholder} teams.",
-            "{verb} {domain} workflows with {tool1}, {tool2}, and {tool3}, adding {control} checks for safer clinical reporting and compliant analytics delivery.",
-            "{verb} curated models for {data_asset} in {tool1} and {tool2}, improving patient analytics, provider analytics, and trusted operational reporting.",
-            "{verb} orchestration and monitoring across {tool1}, {tool2}, and {tool3}, strengthening SLA recovery for {focus} and regulated healthcare reporting cycles.",
-            "{verb} secure integration patterns for {domain} records using {tool1}, {tool2}, and {tool3}, supporting HIPAA, PHI handling, audit readiness, and governed access.",
-            "{verb} warehouse and lakehouse layers for {data_asset} with {tool1}, {tool2}, and SQL, enabling cleaner dashboards for {stakeholder} users.",
-            "{verb} batch and streaming patterns with {tool1}, {tool2}, and {tool3}, helping teams consume fresher healthcare compliance and clinical operations signals.",
-        ]
-    if same_domain(domain, "Financial Services / Banking / Wealth Management / Asset Servicing"):
-        return [
-            "{verb} {focus} pipelines for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving {outcome} for {stakeholder} teams.",
-            "{verb} {domain} workflows with {tool1}, {tool2}, and {tool3}, adding {control} controls for audit-ready regulatory reporting and reconciliation.",
-            "{verb} curated models for {data_asset} in {tool1} and {tool2}, improving risk analytics, fraud detection, and transaction processing visibility.",
-            "{verb} orchestration and monitoring across {tool1}, {tool2}, and {tool3}, strengthening SLA recovery for {focus} and business-critical finance reporting.",
-            "{verb} secure integration patterns for {domain} records using {tool1}, {tool2}, and {tool3}, supporting SOX, PCI-DSS, AML, KYC, and governed access.",
-            "{verb} warehouse and lakehouse layers for {data_asset} with {tool1}, {tool2}, and SQL, enabling cleaner dashboards for {stakeholder} users.",
-            "{verb} batch and streaming patterns with {tool1}, {tool2}, and {tool3}, helping teams consume fresher regulatory, fraud, and risk signals.",
-        ]
-    if same_domain(domain, "Retail / E-commerce"):
-        return [
-            "{verb} {focus} pipelines for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving {outcome} for {stakeholder} teams.",
-            "{verb} {domain} workflows with {tool1}, {tool2}, and {tool3}, adding {control} checks for cleaner order pipelines and customer analytics.",
-            "{verb} curated models for {data_asset} in {tool1} and {tool2}, improving inventory optimization, pricing analytics, and seller analytics reporting.",
-            "{verb} orchestration and monitoring across {tool1}, {tool2}, and {tool3}, strengthening SLA recovery for {focus} and digital commerce reporting.",
-            "{verb} secure integration patterns for {domain} datasets using {tool1}, {tool2}, and {tool3}, supporting governed access and reliable supply chain analytics.",
-            "{verb} warehouse and lakehouse layers for {data_asset} with {tool1}, {tool2}, and SQL, enabling cleaner dashboards for {stakeholder} users.",
-            "{verb} batch and streaming patterns with {tool1}, {tool2}, and {tool3}, helping teams consume fresher inventory, order, and recommendation signals.",
-        ]
-    if same_domain(domain, "Aviation"):
-        return [
-            "{verb} {focus} pipelines for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving {outcome} for {stakeholder} teams.",
-            "{verb} {domain} workflows with {tool1}, {tool2}, and {tool3}, adding {control} checks for cleaner safety reporting and airline operations analytics.",
-            "{verb} curated models for {data_asset} in {tool1} and {tool2}, improving flight operations, crew scheduling, and passenger analytics reporting.",
-            "{verb} orchestration and monitoring across {tool1}, {tool2}, and {tool3}, strengthening SLA recovery for {focus} and operational reporting cycles.",
-            "{verb} secure integration patterns for {domain} datasets using {tool1}, {tool2}, and {tool3}, supporting governed access and route optimization analytics.",
-            "{verb} warehouse and lakehouse layers for {data_asset} with {tool1}, {tool2}, and SQL, enabling cleaner dashboards for {stakeholder} users.",
-            "{verb} batch and streaming patterns with {tool1}, {tool2}, and {tool3}, helping teams consume fresher flight, maintenance, and loyalty analytics signals.",
-        ]
-    if same_domain(domain, "Travel / Online Travel Platform"):
-        return [
-            "{verb} {focus} pipelines for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving {outcome} for {stakeholder} teams.",
-            "{verb} {domain} workflows with {tool1}, {tool2}, and {tool3}, adding {control} checks for cleaner booking analytics and cancellation analytics.",
-            "{verb} curated models for {data_asset} in {tool1} and {tool2}, improving itinerary data, pricing trends, and customer segmentation reporting.",
-            "{verb} orchestration and monitoring across {tool1}, {tool2}, and {tool3}, strengthening SLA recovery for {focus} and online travel reporting cycles.",
-            "{verb} secure integration patterns for {domain} datasets using {tool1}, {tool2}, and {tool3}, supporting governed access and recommendation systems.",
-            "{verb} warehouse and lakehouse layers for {data_asset} with {tool1}, {tool2}, and SQL, enabling cleaner dashboards for {stakeholder} users.",
-            "{verb} batch and streaming patterns with {tool1}, {tool2}, and {tool3}, helping teams consume fresher hotel, flight search, and pricing signals.",
-        ]
-    return [
-        "{verb} {focus} pipelines for {data_asset} on {cloud} using {tool1}, {tool2}, and {tool3}, improving {outcome} for {stakeholder} teams.",
-        "{verb} ingestion workflows for {domain} datasets with {tool1}, {tool2}, and {tool3}, adding {control} checks that reduced recurring production defects.",
-        "{verb} scalable transformations in {tool1} and {tool2}, applying partitioning, schema controls, and incremental processing for high-volume {domain} workloads.",
-        "{verb} orchestration and monitoring across {tool1}, {tool2}, and {tool3}, improving pipeline recovery, alert visibility, and SLA adherence.",
-        "{verb} secure data integration patterns using {tool1}, {tool2}, and {tool3}, supporting governed access, audit readiness, and compliant data handling.",
-        "{verb} warehouse and lakehouse models with {tool1}, {tool2}, and SQL, enabling cleaner semantic layers for dashboards and stakeholder reporting.",
-        "{verb} streaming and batch processing patterns with {tool1}, {tool2}, and {tool3}, helping analytics teams consume fresher operational signals.",
-    ]
 
 
 def _focus_for_experience(domain: str, client_name: str, exp_index: int) -> List[Dict[str, str]]:

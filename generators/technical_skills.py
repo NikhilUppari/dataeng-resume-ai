@@ -13,7 +13,7 @@ from utils.text import dedupe_keep_order
 
 
 DEFAULT_SKILL_LIMIT = 16
-CLOUD_SKILL_LIMIT = 28
+CLOUD_SKILL_LIMIT = 16
 TELECOM_SKILL_LIMIT = 14
 TELECOM_CLOUD_SKILL_LIMIT = 16
 ADDITIONAL_KEYWORD_LIMIT = 18
@@ -28,9 +28,12 @@ def generate_technical_skills(
 ) -> Dict[str, List[str]]:
     selected_clouds = dedupe_keep_order(cloud for cloud in cloud_by_client.values() if cloud)
     cloud_services: List[str] = []
+    prioritized_cloud_services: List[str] = []
     jd_terms = all_jd_terms(jd)
     for cloud in selected_clouds:
-        cloud_services.extend(expand_cloud_services(cloud, jd_terms, jd.seniority_level))
+        expanded = expand_cloud_services(cloud, jd_terms, jd.seniority_level)
+        cloud_services.extend(expanded)
+        prioritized_cloud_services.extend(expanded[:6])
     if not _has_ai_focus(jd_terms):
         ai_lookup = {term.lower() for term in _AI_ML_TOOLS}
         cloud_services = [service for service in cloud_services if service.lower() not in ai_lookup]
@@ -51,7 +54,7 @@ def generate_technical_skills(
         return _telecom_adjacent_skills(selected_clouds, jd, role_tools, cloud_services, tailoring_strategy)
 
     skills = {
-        "Cloud Platforms": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(role_tools, _cloud_terms())), CLOUD_SKILL_LIMIT),
+        "Cloud Platforms": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + prioritized_cloud_services + _matching_tools(role_tools, _cloud_terms())), CLOUD_SKILL_LIMIT),
         "Big Data Technologies": _limit(dedupe_keep_order(jd.data_tools + _matching_tools(role_tools, _BIG_DATA_TOOLS))),
         "Data Engineering & ETL": _limit(dedupe_keep_order(jd.etl_tools + _matching_tools(role_tools, _ETL_TOOLS) + ["ETL", "ELT"])),
         "Data Warehousing": _limit(dedupe_keep_order(_matching_tools(jd_tools + role_tools, _WAREHOUSE_TOOLS) + ["dimensional modeling", "star schema"])),

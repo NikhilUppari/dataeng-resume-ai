@@ -15,7 +15,7 @@ The app runs on your laptop with Streamlit and Ollama. It parses a DOCX or PDF r
 - Timeline validation to avoid placing newer tools into older experience periods
 - Tailored professional summary, technical skills, responsibilities, and environment sections
 - Personal header/contact details preserved at the beginning of generated resumes
-- Format-controlled client responsibilities with target counts by experience order and compact 29-33 word bullets
+- Format-controlled client responsibilities with target counts by experience order and concise, naturally written bullets
 - ATS analysis panel with match score, matched keywords, missing keywords, missing tools, cloud score, domain score, and suggestions
 - ATS-friendly DOCX export through `python-docx` with Calibri 10pt body text, 14pt Camel Case section headings, thin heading borders, and compact capped technical skills lines
 - PDF export through `docx2pdf` on Windows or `pypandoc` when configured, with a built-in fallback PDF writer
@@ -116,6 +116,7 @@ Current DOCX formatting rules:
 - Education stays at the bottom; the Education heading uses Calibri 14pt and education details use Calibri 10pt.
 - Technical skills render as compact category lines, such as `Cloud Platforms: AWS, Azure, S3, Glue, Redshift`.
 - Technical skills are capped by category to avoid keyword stuffing.
+- AI/ML skills are shown in the skills section only when the JD has an AI/ML focus; otherwise limited recent-client AI exposure may still appear in experience.
 - Client experience headers render on one compact line: `Client Name | Role | Dates | Domain`.
 - Responsibility bullets use tight spacing and bold known technical tools that appear in the bullet.
 - Client responsibility counts target 27 points for the current client, then 25, 23, 20, and 10 for older clients.
@@ -131,6 +132,12 @@ The app now compares the JD domain with the resume's detected client domains bef
 - For telecom mediation JDs without telecom client history, the app emphasizes transferable streaming, distributed systems, platform engineering, observability, and SRE experience.
 - Unsupported telecom claims such as direct ASN.1 decoding, CDR/UDR processing, OSS/BSS mediation ownership, and vendor platform work are not injected unless they already exist in the source resume.
 - The ATS panel shows a domain-gap warning when adjacent-fit positioning is used.
+
+## Notes on Alignment Scores
+
+The ATS panel reports a local alignment estimate, not a score from a commercial ATS. It combines technical keyword coverage, selected-cloud coverage, domain evidence, and basic section structure. A low score is a review signal and should never justify unsupported experience claims.
+
+The quality gate distinguishes between a resume that passes the alignment thresholds and one generated with review warnings. Warning resumes remain downloadable so you can inspect and correct them manually.
 
 ## Future Improvements
 

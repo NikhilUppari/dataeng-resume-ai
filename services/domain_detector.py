@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, Iterable, List
 
 from services.client_registry import known_client_domain
@@ -178,9 +179,13 @@ def detect_domain(client_name: str, resume_text: str = "") -> str:
             return domain
 
     text = f"{client_name} {resume_text}".lower()
-    for domain, terms in DOMAIN_SIGNALS.items():
-        if any(term in text for term in terms):
-            return domain
+    scores = {
+        domain: sum(2 for term in terms if _contains_signal(text, term))
+        for domain, terms in DOMAIN_SIGNALS.items()
+    }
+    best_domain = max(scores, key=scores.get)
+    if scores[best_domain] >= 2:
+        return best_domain
     return ENTERPRISE_DOMAIN
 
 
@@ -200,10 +205,10 @@ def infer_job_domain(jd: JobAnalysis) -> str:
     for domain, signals in DOMAIN_SIGNALS.items():
         score = 0
         for signal in signals:
-            if signal.lower() in text:
+            if _contains_signal(text, signal):
                 score += 2
         for keyword in DOMAIN_KEYWORDS.get(domain, []):
-            if keyword.lower() in text:
+            if _contains_signal(text, keyword):
                 score += 3
         scores[domain] = score
 
@@ -235,3 +240,8 @@ def _domain_evidence_text(*groups: Iterable[str]) -> str:
     for group in groups:
         values.extend(str(value) for value in group if value)
     return " ".join(values).lower()
+
+
+def _contains_signal(text: str, signal: str) -> bool:
+    pattern = rf"(?<!\w){re.escape(signal.lower())}(?!\w)"
+    return bool(re.search(pattern, text.lower()))

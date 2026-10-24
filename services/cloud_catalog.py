@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Dict, Iterable, List
 
 from utils.text import dedupe_keep_order
@@ -131,11 +132,16 @@ CLOUD_SERVICE_FIRST_YEAR: Dict[str, int] = {
     "dbt": 2016,
 }
 
+AI_CLOUD_SERVICES = {"SageMaker", "Bedrock", "Azure ML", "Azure OpenAI", "Vertex AI", "Gemini"}
+
 
 def expand_cloud_services(cloud: str, jd_terms: Iterable[str], seniority: str = "Senior") -> List[str]:
     cloud = cloud if cloud in CLOUD_SERVICES else "AWS"
     jd_lower = " ".join(jd_terms).lower()
     services = list(CLOUD_SERVICES[cloud])
+    ai_focus = bool(re.search(r"\b(ai|ml|genai|llm|rag|model|feature)\b|machine learning|generative ai", jd_lower))
+    if not ai_focus:
+        services = [service for service in services if service not in AI_CLOUD_SERVICES]
 
     if "snowflake" in jd_lower:
         services.append("Snowflake")

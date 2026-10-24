@@ -260,6 +260,35 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertIn("Bedrock", recent_text)
         self.assertNotIn("Bedrock", older_text)
 
+    def test_ai_focused_jd_can_use_ai_tools_in_two_recent_clients(self) -> None:
+        profile = ResumeProfile(
+            raw_text="Built data platforms.",
+            experiences=[
+                Experience(client_name="Current Client", dates="Jan 2024 - Present", domain="Healthcare", environment=["Python", "SQL"]),
+                Experience(client_name="Recent Client", dates="Jan 2023 - Dec 2023", domain="Healthcare", environment=["Python", "SQL"]),
+                Experience(client_name="Older Client", dates="Jan 2020 - Dec 2020", domain="Healthcare", environment=["Python", "SQL"]),
+            ],
+        )
+        jd = JobAnalysis(
+            data_tools=["Spark"],
+            ai_ml_tools=["SageMaker", "Bedrock"],
+            responsibilities=["Build feature pipelines for machine learning teams."],
+            seniority_level="Senior",
+        )
+
+        tailored = tailor_resume(
+            profile,
+            jd,
+            {"Current Client": "AWS", "Recent Client": "AWS", "Older Client": "AWS"},
+        )
+        current_text = "\n".join(tailored.experiences[0].responsibilities) + "\n" + ", ".join(tailored.experiences[0].environment)
+        recent_text = "\n".join(tailored.experiences[1].responsibilities) + "\n" + ", ".join(tailored.experiences[1].environment)
+        older_text = "\n".join(tailored.experiences[2].responsibilities) + "\n" + ", ".join(tailored.experiences[2].environment)
+
+        self.assertTrue(any(tool in current_text for tool in ["SageMaker", "Bedrock", "MLflow"]))
+        self.assertTrue(any(tool in recent_text for tool in ["SageMaker", "Bedrock", "MLflow"]))
+        self.assertFalse(any(tool in older_text for tool in ["SageMaker", "Bedrock", "MLflow"]))
+
     def test_non_ai_jd_does_not_force_ai_tools_into_recent_client(self) -> None:
         profile = ResumeProfile(
             raw_text="Built healthcare data platforms.",
@@ -355,6 +384,19 @@ class ResumeTailoringDomainTests(unittest.TestCase):
 
         self.assertIn("Databricks", ats["missing_tools"])
         self.assertNotIn("Build reliable pipelines for analytics partners.", ats["missing_tools"])
+
+    def test_ats_format_score_reflects_resume_structure(self) -> None:
+        jd = JobAnalysis(required_skills=["Python"])
+        structured = score_resume(
+            None,
+            "Professional Summary\nTechnical Skills\nProfessional Experience\nEducation\nPython",
+            jd,
+            ["AWS"],
+        )
+        partial = score_resume(None, "Python pipelines", jd, ["AWS"])
+
+        self.assertEqual(structured["format_score"], 100.0)
+        self.assertEqual(partial["format_score"], 0.0)
 
     def test_quality_gate_passes_only_when_alignment_thresholds_are_met(self) -> None:
         weak = {

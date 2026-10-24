@@ -257,6 +257,8 @@ def _tailor_experiences(
         tailor_to_jd = index < JD_TAILORED_EXPERIENCE_COUNT
         selected_cloud = cloud_by_client.get(exp.client_name, exp.selected_cloud or "AWS")
         cloud_context_terms = jd_terms if tailor_to_jd else []
+        if index >= 2:
+            cloud_context_terms = _terms_without_ai_focus(cloud_context_terms)
         cloud_tools = filter_timeline_safe(expand_cloud_services(selected_cloud, cloud_context_terms, jd.seniority_level), exp.dates)
         recent_ai_tools = _recent_ai_tools(selected_cloud, exp.dates, jd, experience_index=index) if index < 2 else []
         active_domain = _resolve_experience_domain(exp.domain, job_domain, strategy)
@@ -357,6 +359,11 @@ def _recent_ai_tools(cloud: str, dates: str, jd: JobAnalysis, *, experience_inde
 def _jd_has_ai_focus(jd: JobAnalysis) -> bool:
     terms = " ".join(all_jd_terms(jd)).lower()
     return bool(re.search(r"\b(ai|ml|genai|llm|rag|model|feature)\b|machine learning|generative ai", terms))
+
+
+def _terms_without_ai_focus(terms: Iterable[str]) -> List[str]:
+    pattern = re.compile(r"\b(ai|ml|genai|llm|rag|model|feature|sagemaker|bedrock|gemini|openai)\b|machine learning|generative ai", re.IGNORECASE)
+    return [term for term in terms if not pattern.search(str(term))]
 
 
 def _jd_focus(jd: JobAnalysis) -> str:
@@ -807,6 +814,8 @@ def _add_repair_terms_to_recent_experiences(
 
     for index, exp in enumerate(recent):
         tools_for_exp = tool_terms[index::JD_TAILORED_EXPERIENCE_COUNT]
+        if index >= 2:
+            tools_for_exp = [term for term in tools_for_exp if not _is_ai_tool(term)]
         domains_for_exp = domain_terms[index::JD_TAILORED_EXPERIENCE_COUNT]
         responsibilities_for_exp = responsibility_terms[index::JD_TAILORED_EXPERIENCE_COUNT]
         cloud_for_exp = cloud_terms[index::JD_TAILORED_EXPERIENCE_COUNT]
@@ -835,3 +844,7 @@ def _append_alignment_phrase(sentence: str, terms: List[str]) -> str:
     base = sentence.rstrip(".")
     phrase = f", with added emphasis on {', '.join(terms)}"
     return clamp_words(base + phrase)
+
+
+def _is_ai_tool(value: str) -> bool:
+    return bool(re.search(r"\b(sagemaker|bedrock|mlflow|vertex ai|azure ml|azure openai|gemini|scikit-learn|mllib)\b", value or "", re.IGNORECASE))

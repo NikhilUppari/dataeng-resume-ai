@@ -82,8 +82,6 @@ def score_resume(
 ) -> Dict[str, object]:
     hard_skill_terms = _hard_skill_terms(jd)
     responsibility_terms = _responsibility_key_terms(jd)
-    jd_keywords = dedupe_keep_order(hard_skill_terms + responsibility_terms + _scoreable_jd_terms(jd))
-
     hard_skill_score, hard_matched, hard_missing = _match_terms(hard_skill_terms, resume_text)
     responsibility_score, responsibility_matched, responsibility_missing = _match_terms(responsibility_terms, resume_text)
     keyword_score = _technical_score(hard_skill_score, responsibility_score, hard_skill_terms, responsibility_terms)
@@ -101,11 +99,12 @@ def score_resume(
 
     domain_weight = DOMAIN_WEIGHT if _has_domain_specific_requirements(domain_terms, tailoring_strategy) else LIGHT_DOMAIN_WEIGHT
     technical_weight = TECHNICAL_WEIGHT + (DOMAIN_WEIGHT - domain_weight)
+    format_score = _format_score(resume_text)
     overall = round(
         (keyword_score * technical_weight)
         + (cloud_score * CLOUD_WEIGHT)
         + (domain_score * domain_weight)
-        + (100.0 * FORMAT_WEIGHT),
+        + (format_score * FORMAT_WEIGHT),
         1,
     )
     missing_tools = [kw for kw in hard_missing if _looks_like_tool(kw)]
@@ -138,6 +137,7 @@ def score_resume(
         "keyword_score": keyword_score,
         "cloud_alignment_score": cloud_score,
         "domain_alignment_score": domain_score,
+        "format_score": format_score,
         "score_breakdown": score_breakdown,
         "priority_gaps": priority_gaps,
         "matched_keywords": matched,
@@ -272,7 +272,8 @@ def _looks_like_responsibility_phrase(phrase: str) -> bool:
 
 
 def _scored_domain_terms(jd: JobAnalysis) -> List[str]:
-    return dedupe_keep_order(term for term in jd.domain_keywords if term in DOMAIN_SPECIFIC_TERMS)
+    known = {term.lower() for term in DOMAIN_SPECIFIC_TERMS}
+    return dedupe_keep_order(term for term in jd.domain_keywords if term.lower() in known)
 
 
 def _has_domain_specific_requirements(domain_terms: List[str], tailoring_strategy: TailoringStrategy | None) -> bool:
@@ -370,6 +371,19 @@ def _scoreable_jd_terms(jd: JobAnalysis) -> List[str]:
 def _is_scoreable_term(value: str) -> bool:
     words = value.split()
     return bool(value.strip()) and len(words) <= 8
+
+
+def _format_score(resume_text: str) -> float:
+    """Estimate basic ATS-readable structure from the rendered resume text."""
+    text = (resume_text or "").lower()
+    expected_sections = (
+        "professional summary",
+        "technical skills",
+        "professional experience",
+        "education",
+    )
+    present = sum(section in text for section in expected_sections)
+    return round((present / len(expected_sections)) * 100.0, 1)
 
 
 def _missing_responsibility_terms(responsibilities: Iterable[str], resume_text: str) -> List[str]:

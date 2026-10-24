@@ -46,7 +46,6 @@ SUMMARY_POINT_COUNT = 12
 BULLET_MIN_WORDS = 18
 BULLET_MAX_WORDS = 34
 BULLET_MAX_TECH_TERMS = 3
-SUMMARY_MIN_WORDS = 18
 SUMMARY_MAX_WORDS = 32
 RECENT_AI_TOOLS_BY_CLOUD = {
     "AWS": ["SageMaker", "Bedrock", "MLflow"],
@@ -238,46 +237,12 @@ def _normalize_responsibility_phrase(value: str) -> str:
     return phrase[:1].lower() + phrase[1:]
 
 
-SUMMARY_LENGTHENING_PHRASES = [
-    "with monitoring, validation, documentation, recovery notes, and support context built into delivery routines",
-    "while keeping release notes, recovery steps, performance tuning, and ownership clear",
-    "for stable production operations, cleaner stakeholder reporting, and practical support ownership",
-    "with practical controls for deployment, review, incident response, and recovery",
-    "while keeping performance tuning, data validation, and documentation easy to maintain",
-    "with durable handoffs across engineering, analytics, platform, and operations teams",
-    "with clear release support context",
-    "with practical production context",
-    "through support review",
-]
-
-
 def _fit_summary_word_range(text: str, phrase_offset: int = 0) -> str:
     sentence = text.strip().rstrip(".")
-    phrase_index = phrase_offset
-    while len(sentence.split()) < SUMMARY_MIN_WORDS:
-        current_count = len(sentence.split())
-        needed = SUMMARY_MIN_WORDS - current_count
-        remaining = SUMMARY_MAX_WORDS - current_count
-        phrase = _select_summary_extension(needed, remaining, phrase_index)
-        sentence = f"{sentence}, {phrase}"
-        phrase_index += 1
-
     tokens = sentence.split()
     if len(tokens) > SUMMARY_MAX_WORDS:
         tokens = tokens[:SUMMARY_MAX_WORDS]
     return " ".join(tokens).rstrip(",;") + "."
-
-
-def _select_summary_extension(needed: int, remaining: int, phrase_offset: int) -> str:
-    rotated = SUMMARY_LENGTHENING_PHRASES[phrase_offset % len(SUMMARY_LENGTHENING_PHRASES) :] + SUMMARY_LENGTHENING_PHRASES[: phrase_offset % len(SUMMARY_LENGTHENING_PHRASES)]
-    for phrase in rotated:
-        count = len(phrase.split())
-        if needed <= count <= remaining:
-            return phrase
-    for phrase in rotated:
-        if len(phrase.split()) <= remaining:
-            return phrase
-    return "through support review"
 
 
 def _tailor_experiences(
@@ -687,21 +652,9 @@ def _jd_tool_subset_for_older_experience(jd: JobAnalysis, client_name: str, exp_
     return rotated[:target_count]
 
 
-RESPONSIBILITY_EXTENSIONS = [
-    "for production data consumers",
-    "during recurring support cycles",
-    "before business reporting windows",
-    "without adding manual recovery steps",
-    "for downstream analytics users",
-]
-
-
 def _fit_responsibility_word_range(text: str, phrase_offset: int = 0) -> str:
     sentence = text.strip().rstrip(".")
     tokens = sentence.split()
-    if len(tokens) < BULLET_MIN_WORDS:
-        sentence = f"{sentence}, {RESPONSIBILITY_EXTENSIONS[phrase_offset % len(RESPONSIBILITY_EXTENSIONS)]}"
-        tokens = sentence.split()
     if len(tokens) <= BULLET_MAX_WORDS:
         return " ".join(tokens).rstrip(",;") + "."
 

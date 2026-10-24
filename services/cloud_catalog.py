@@ -109,6 +109,29 @@ COMMON_DATA_STACK = [
 ]
 
 
+# Conservative first-available years used to prevent obviously anachronistic
+# tool placement. These are intentionally kept in one table so the policy is
+# easy to review and extend.
+CLOUD_SERVICE_FIRST_YEAR: Dict[str, int] = {
+    "Bedrock": 2023,
+    "Azure OpenAI": 2023,
+    "Gemini": 2023,
+    "Fabric": 2023,
+    "Lake Formation": 2021,
+    "Vertex AI": 2021,
+    "Astronomer": 2018,
+    "MSK": 2018,
+    "EKS": 2018,
+    "AKS": 2018,
+    "GKE": 2018,
+    "Glue": 2017,
+    "AWS Glue": 2017,
+    "Athena": 2016,
+    "Step Functions": 2016,
+    "dbt": 2016,
+}
+
+
 def expand_cloud_services(cloud: str, jd_terms: Iterable[str], seniority: str = "Senior") -> List[str]:
     cloud = cloud if cloud in CLOUD_SERVICES else "AWS"
     jd_lower = " ".join(jd_terms).lower()
@@ -134,17 +157,8 @@ def expand_cloud_services(cloud: str, jd_terms: Iterable[str], seniority: str = 
 
 
 def cloud_timeline_blocklist(year_hint: int) -> List[str]:
-    blocked: List[str] = []
-    if year_hint < 2023:
-        blocked.extend(["Bedrock", "Azure OpenAI", "Gemini"])
-    if year_hint < 2023:
-        blocked.append("Fabric")
-    if year_hint < 2021:
-        blocked.extend(["Lake Formation", "Vertex AI"])
-    if year_hint < 2018:
-        blocked.extend(["Astronomer", "MSK", "EKS", "AKS", "GKE"])
-    if year_hint < 2017:
-        blocked.extend(["Glue", "AWS Glue"])
-    if year_hint < 2016:
-        blocked.extend(["Athena", "Step Functions", "dbt"])
-    return blocked
+    return [
+        technology
+        for technology, first_year in CLOUD_SERVICE_FIRST_YEAR.items()
+        if year_hint < first_year
+    ]

@@ -56,7 +56,7 @@ Generated output formats:
 The DOCX output is generated with a compact ATS-friendly layout:
 
 - Body text uses Calibri 10pt.
-- Section headings use Camel Case, Calibri 12pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
+- Section headings use Camel Case, Calibri 14pt, bold text, 6pt before spacing, 2pt after spacing, and a thin bottom border.
 - Client names and subheadings use Calibri 10pt.
 - Personal header/contact details are preserved at the beginning of the generated resume.
 - Education remains at the bottom; the Education heading uses Calibri 14pt and education details use Calibri 10pt.
@@ -64,7 +64,8 @@ The DOCX output is generated with a compact ATS-friendly layout:
 - Technical skills are capped by category to keep the section concise and avoid keyword stuffing.
 - Each client header is kept on one line when data is available: `Client Name | Role | Dates | Domain`.
 - Client responsibility counts target 27 points for the current client, then 25, 23, 20, and 10 for older clients.
-- Responsibility bullets target 29-33 words and bold known technical tools, skills, and platforms when they appear in the bullet.
+- Responsibility bullets are kept concise, capped at 34 words, and written without filler phrases added only to meet a word count.
+- For non-AI JDs, limited AI tooling may appear only in the most recent client experience. AI-focused JDs can use more AI tooling across the two most recent clients, subject to timeline validation.
 - Bullets use tight spacing to keep long experience sections readable without adding unnecessary pages.
 
 ## Truthful Domain Tailoring

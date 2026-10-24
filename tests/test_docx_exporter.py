@@ -81,7 +81,7 @@ class DocxExporterBoldFormattingTests(unittest.TestCase):
             self.assertEqual(heading.text, heading.text.title())
             self.assertTrue(heading.runs[0].bold)
             self.assertEqual(heading.runs[0].font.name, "Calibri")
-            self.assertEqual(heading.runs[0].font.size, Pt(12))
+            self.assertEqual(heading.runs[0].font.size, Pt(14))
             self.assertEqual(heading.paragraph_format.space_before, Pt(6))
             self.assertEqual(heading.paragraph_format.space_after, Pt(2))
             self.assertTrue(_has_bottom_border(heading))

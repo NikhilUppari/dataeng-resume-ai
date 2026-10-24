@@ -83,7 +83,7 @@ def main() -> None:
             _render_build_log(build_log_placeholder, st.session_state["build_log"])
 
         with st.spinner("Tailoring, scoring, and validating resume alignment..."):
-            log_status("Resume builder in action. Reading the JD and pretending this is totally casual.")
+            log_status("Reading the job description and source resume.")
             jd = _analyze_jd(jd_text, model, use_ai, ollama, log_status)
             tailored, quality, attempts = _generate_quality_checked_resume(profile, jd, cloud_by_client, log_status)
             st.session_state["tailored_resume"] = tailored
@@ -92,18 +92,18 @@ def main() -> None:
             st.session_state["alignment_attempts"] = attempts
             st.session_state["resume_text"] = render_resume_text(tailored)
             if quality.get("download_allowed"):
-                log_status("Building DOCX now. The resume has earned paperwork privileges.")
+                log_status("Building DOCX export.")
                 st.session_state["docx_bytes"] = build_docx(tailored)
                 log_status("Building PDF export too. Local converters get first try, then the built-in fallback takes over.")
                 st.session_state["pdf_bytes"] = build_pdf(tailored)
                 if st.session_state["pdf_bytes"] is None:
                     log_status("PDF export did not finish cleanly. DOCX is still ready.")
                 else:
-                    log_status("PDF is ready too. Very civilized.")
+                    log_status("PDF export is ready.")
             else:
                 st.session_state.pop("docx_bytes", None)
                 st.session_state.pop("pdf_bytes", None)
-                log_status("Downloads are staying locked because the score still needs work.")
+                log_status("Exports were not generated because no valid alignment result was returned.")
             elapsed = time.monotonic() - timer_start
             st.session_state["generation_timer_running"] = False
             st.session_state["generation_timer_elapsed"] = elapsed
@@ -206,9 +206,9 @@ def _generate_quality_checked_resume(
         if attempt_index == 0:
             _log(log_status, "Attempt 1: building the first tailored draft. Optimism is high.")
         elif attempt_index == 1:
-            _log(log_status, "Urghhhhh, score is low. Let me work again and tighten the match.")
+            _log(log_status, "The alignment score is below the target; refining the draft.")
         else:
-            _log(log_status, "Starting again. Such a boring task, but the resume deserves better.")
+            _log(log_status, "Running the final alignment pass.")
         tailored = tailor_resume(profile, jd, cloud_by_client, alignment_pass=attempt_index)
         quality = evaluate_resume_quality(tailored.ats_score)
         latest_tailored = tailored

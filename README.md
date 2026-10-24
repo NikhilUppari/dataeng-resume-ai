@@ -144,7 +144,7 @@ The quality gate distinguishes between a resume that passes the alignment thresh
 - Template-aware DOCX replacement for exact formatting preservation
 - SQLite application history for generated versions
 - Side-by-side diff against original resume
-- More granular timeline rules by cloud service release date
+- Source-backed impact metrics when the input resume contains measurable outcomes
 - Resume truthfulness checklist before export
 - Local embeddings for richer JD-to-resume keyword matching
 - Optional portfolio mode with anonymized sample outputs

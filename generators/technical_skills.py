@@ -50,7 +50,7 @@ def generate_technical_skills(
     ):
         return _telecom_adjacent_skills(selected_clouds, jd, role_tools, cloud_services, tailoring_strategy)
 
-    return {
+    skills = {
         "Cloud Platforms": _limit(dedupe_keep_order(selected_clouds + jd.cloud_platforms + _matching_tools(role_tools, _cloud_terms())), CLOUD_SKILL_LIMIT),
         "Big Data Technologies": _limit(dedupe_keep_order(jd.data_tools + _matching_tools(role_tools, _BIG_DATA_TOOLS))),
         "Data Engineering & ETL": _limit(dedupe_keep_order(jd.etl_tools + _matching_tools(role_tools, _ETL_TOOLS) + ["ETL", "ELT"])),
@@ -67,6 +67,9 @@ def generate_technical_skills(
         "Monitoring & Observability": _limit(dedupe_keep_order(_matching_tools(role_tools, _MONITORING_TOOLS) + ["logging", "alerting", "SLA monitoring"])),
         "Testing & Data Quality": _limit(dedupe_keep_order(_matching_tools(role_tools, _TESTING_TOOLS) + ["unit testing", "reconciliation checks", "schema validation"])),
     }
+    if not _has_ai_focus(jd_terms):
+        skills.pop("AI/ML & GenAI", None)
+    return skills
 
 
 def _telecom_adjacent_skills(

@@ -43,7 +43,6 @@ JD_TAILORED_EXPERIENCE_COUNT = 3
 BASELINE_DATA_STACK = ["Python", "SQL", "Spark", "Airflow", "Git", "data quality"]
 RESPONSIBILITY_COUNT_BY_CLIENT_ORDER = [27, 25, 23, 20, 10]
 SUMMARY_POINT_COUNT = 12
-BULLET_MIN_WORDS = 18
 BULLET_MAX_WORDS = 34
 BULLET_MAX_TECH_TERMS = 3
 SUMMARY_MAX_WORDS = 32
@@ -176,7 +175,7 @@ def _fit_summary_points(
         "Builds data products with practical observability, alerting, runbooks, and root-cause analysis for steady production support.",
         (
             "Uses AI and ML tooling selectively in recent work, including " + recent_ai + ", for metadata review, feature readiness, and data quality acceleration."
-            if recent_ai
+            if recent_ai and _jd_has_ai_focus(jd)
             else "Improves production data quality with reconciliation checks, schema validation, and practical monitoring for recurring pipeline issues."
         ),
         "Modernizes legacy ingestion paths, file movement, SFTP handoffs, object storage layouts, and downstream consumption patterns.",

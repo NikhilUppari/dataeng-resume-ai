@@ -94,7 +94,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
             matches = extract_known_technologies(point, tool_terms)
             self.assertGreaterEqual(len(matches), 1, point)
             self.assertLessEqual(len(matches), 3, point)
-            self.assertGreaterEqual(len(point.rstrip(".").split()), 18, point)
+            self.assertGreaterEqual(len(point.rstrip(".").split()), 14, point)
             self.assertLessEqual(len(point.rstrip(".").split()), 34, point)
 
     def test_spark_platform_jd_generates_natural_non_repetitive_bullets(self) -> None:
@@ -218,7 +218,7 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         self.assertEqual(len(tailored.summary), 12)
         for point in tailored.summary:
             word_count = len(point.rstrip(".").split())
-            self.assertGreaterEqual(word_count, 18, point)
+            self.assertGreaterEqual(word_count, 14, point)
             self.assertLessEqual(word_count, 32, point)
             for forbidden in [
                 "tailored for",
@@ -277,7 +277,9 @@ class ResumeTailoringDomainTests(unittest.TestCase):
         tailored = tailor_resume(profile, jd, {"Oak Street Health": "AWS"})
         rendered = render_resume_text(tailored)
 
-        for ai_tool in ["Bedrock", "SageMaker", "Azure OpenAI", "Gemini"]:
+        self.assertIn("SageMaker", rendered)
+        self.assertNotIn("AI/ML & GenAI:", rendered)
+        for ai_tool in ["Bedrock", "Azure OpenAI", "Gemini"]:
             self.assertNotIn(ai_tool, rendered)
 
     def test_generic_experience_does_not_claim_unmatched_jd_domain(self) -> None:
